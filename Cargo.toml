@@ -1,6 +1,13 @@
 [package]
 name = "omrya"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 
+[features]
+default = ["fjall-secure-keyspaces"]
+fjall-secure-keyspaces = ["fjall_kv/secure-keyspaces"]
+
 [dependencies]
+fjall_kv = { package = "fjall", path = "./omrya-kv", default-features = true, features = ["secure-keyspaces"] }
+tree-sitter = "0.26.8"
+tree-sitter-rust = "0.24.2"
