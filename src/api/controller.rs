@@ -231,25 +231,26 @@ impl RdfController {
         auths: BTreeSet<String>,
         temporal: &TemporalQueryOptions,
     ) -> Result<Vec<RyaStatement>, String> {
-        let pattern = select_statement_pattern(query)?;
+        let patterns = select_statement_patterns(query)?;
         let options = temporal.apply_to_options(QueryOptions {
             auths,
             ..QueryOptions::default()
         });
-        let results = self
-            .dao
-            .query(&pattern, &options, &FjallRdfConfiguration::new())
-            .map_err(|e| format!("Failed to evaluate web query: {e}"))?;
-        results
-            .into_iter()
-            .filter_map(|statement| {
+        let mut rows = Vec::new();
+        for pattern in patterns {
+            let results = self
+                .dao
+                .query(&pattern, &options, &FjallRdfConfiguration::new())
+                .map_err(|e| format!("Failed to evaluate web query: {e}"))?;
+            for statement in results {
                 match temporal.valid_time_matches(&self.dao, &options, &statement) {
-                    Ok(true) => Some(Ok(statement)),
-                    Ok(false) => None,
-                    Err(error) => Some(Err(error)),
+                    Ok(true) => rows.push(statement),
+                    Ok(false) => {}
+                    Err(error) => return Err(error),
                 }
-            })
-            .collect()
+            }
+        }
+        Ok(rows)
     }
 
     fn evaluate_named_graph_join(
@@ -743,9 +744,21 @@ fn strip_keyword<'a>(input: &'a str, keyword: &str) -> Option<&'a str> {
         .then(|| &trimmed[keyword.len()..])
 }
 
-fn select_statement_pattern(query: &str) -> Result<StatementPattern, String> {
+fn select_statement_patterns(query: &str) -> Result<Vec<StatementPattern>, String> {
     let prefixes = parse_prefixes(query);
-    let mut block = where_body(query)?;
+    let block = where_body(query)?;
+    let blocks = grouped_union_blocks(block)?.unwrap_or_else(|| vec![block]);
+    blocks
+        .into_iter()
+        .map(|block| select_statement_pattern_from_block(block, &prefixes))
+        .collect()
+}
+
+fn select_statement_pattern_from_block(
+    block: &str,
+    prefixes: &BTreeMap<String, String>,
+) -> Result<StatementPattern, String> {
+    let mut block = block;
     let mut context = None;
 
     if let Some(after_graph) = strip_keyword(block, "graph") {
@@ -775,6 +788,59 @@ fn select_statement_pattern(query: &str) -> Result<StatementPattern, String> {
     let mut pattern = StatementPattern::new(subject, predicate, object);
     pattern.context = context;
     Ok(pattern)
+}
+
+fn grouped_union_blocks(block: &str) -> Result<Option<Vec<&str>>, String> {
+    let mut rest = block.trim_start();
+    if !rest.starts_with('{') {
+        return Ok(None);
+    }
+
+    let mut blocks = Vec::new();
+    let mut saw_union = false;
+    loop {
+        rest = rest.trim_start();
+        if !rest.starts_with('{') {
+            return if saw_union {
+                Err("UNION pattern missing grouped branch".to_string())
+            } else {
+                Ok(None)
+            };
+        }
+        let close = matching_brace(rest, 0)
+            .ok_or_else(|| "UNION pattern branch missing closing brace".to_string())?;
+        blocks.push(rest[1..close].trim());
+        rest = rest[close + 1..].trim_start();
+        if rest.is_empty() {
+            return Ok(Some(blocks));
+        }
+        let Some(after_union) = strip_keyword(rest, "UNION") else {
+            return if saw_union {
+                Err("Expected UNION between grouped graph patterns".to_string())
+            } else {
+                Ok(None)
+            };
+        };
+        saw_union = true;
+        rest = after_union;
+    }
+}
+
+fn matching_brace(input: &str, open: usize) -> Option<usize> {
+    let mut depth = 0usize;
+    for (index, ch) in input.char_indices().skip_while(|(index, _)| *index < open) {
+        match ch {
+            '{' => depth += 1,
+            '}' => {
+                depth = depth.checked_sub(1)?;
+                if depth == 0 {
+                    return Some(index);
+                }
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 fn where_body(query: &str) -> Result<&str, String> {
