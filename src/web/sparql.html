@@ -1,0 +1,2951 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>OMRYA Code Intelligence Console</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #030604;
+        --panel: #070b08;
+        --panel-2: #0b120d;
+        --panel-3: #111913;
+        --line: #1f2d22;
+        --line-bright: #34513a;
+        --text: #dbe6d8;
+        --muted: #7e8b7b;
+        --blue: #38c8ff;
+        --red: #ff5f5f;
+        --green: #37e33f;
+        --yellow: #f4b73f;
+        --purple: #b05cff;
+        --orange: #f28f3b;
+        --black: #020403;
+        --ink: #050706;
+        --focus: rgba(55, 227, 63, 0.18);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100vh;
+        overflow: hidden;
+        background:
+          linear-gradient(90deg, rgba(55, 227, 63, 0.04) 1px, transparent 1px),
+          linear-gradient(0deg, rgba(55, 227, 63, 0.035) 1px, transparent 1px),
+          linear-gradient(135deg, rgba(56, 200, 255, 0.08), transparent 34%),
+          #020403;
+        background-size: 96px 96px, 96px 96px, auto, auto;
+        color: var(--text);
+        font-family:
+          "SFMono-Regular", Consolas, "Liberation Mono", Menlo, ui-monospace, monospace;
+        letter-spacing: 0;
+      }
+
+      button,
+      input,
+      textarea,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      #app {
+        height: 100vh;
+      }
+
+      .shell {
+        display: grid;
+        grid-template-rows: 64px minmax(0, 1fr) 34px;
+        height: 100vh;
+        min-height: 0;
+        overflow: hidden;
+        border: 1px solid #182219;
+        background: rgba(2, 4, 3, 0.9);
+      }
+
+      .topbar {
+        display: grid;
+        grid-template-columns: 248px minmax(420px, 1fr) 292px;
+        align-items: stretch;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(7, 12, 8, 0.96), rgba(3, 6, 4, 0.96));
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 0 18px;
+        border-right: 1px solid #172417;
+      }
+
+      .seal {
+        display: grid;
+        place-items: center;
+        width: 46px;
+        height: 38px;
+        border: 1px solid rgba(55, 227, 63, 0.62);
+        border-radius: 4px;
+        background:
+          linear-gradient(90deg, transparent 49%, rgba(55, 227, 63, 0.22) 50%, transparent 51%),
+          linear-gradient(0deg, transparent 49%, rgba(55, 227, 63, 0.22) 50%, transparent 51%),
+          #050805;
+        color: var(--green);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .brand-title {
+        color: #f2f8ef;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        line-height: 1.1;
+        text-transform: uppercase;
+      }
+
+      .brand-subtitle {
+        margin-top: 5px;
+        color: var(--muted);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .nav {
+        display: flex;
+        min-width: 0;
+      }
+
+      .nav-item {
+        display: grid;
+        place-items: center;
+        min-width: 84px;
+        padding: 0 12px;
+        border-right: 1px solid rgba(29, 51, 67, 0.35);
+        color: #7f8b7d;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .nav-item.active {
+        color: #dffbdd;
+        background: linear-gradient(180deg, rgba(55, 227, 63, 0.15), rgba(55, 227, 63, 0.02));
+        border-bottom: 2px solid var(--green);
+      }
+
+      .repo-ingest-bar {
+        display: grid;
+        grid-template-columns: minmax(240px, 1fr) 120px 148px;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        padding: 12px 14px;
+        border-right: 1px solid #172417;
+        position: relative;
+      }
+
+      .repo-ingest-bar .input,
+      .repo-ingest-bar .select {
+        height: 34px;
+      }
+
+      .ingest-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+      }
+
+      .spinner {
+        width: 12px;
+        height: 12px;
+        border: 2px solid rgba(255, 255, 255, 0.24);
+        border-top-color: #ffffff;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      .ingest-progress {
+        position: absolute;
+        left: 14px;
+        right: 14px;
+        bottom: 3px;
+        display: grid;
+        gap: 3px;
+        pointer-events: none;
+      }
+
+      .ingest-track {
+        position: relative;
+        height: 3px;
+        overflow: hidden;
+        background: #102113;
+      }
+
+      .ingest-track::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 34%;
+        background: linear-gradient(90deg, transparent, var(--green), transparent);
+        animation: ingest-slide 1.15s ease-in-out infinite;
+      }
+
+      .ingest-steps {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        color: #82a080;
+        font-size: 8px;
+        font-weight: 900;
+        line-height: 1;
+        text-transform: uppercase;
+      }
+
+      .ingest-steps .active {
+        color: #e8ffe6;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes ingest-slide {
+        0% {
+          transform: translateX(-110%);
+        }
+        100% {
+          transform: translateX(310%);
+        }
+      }
+
+      .clearance {
+        display: grid;
+        grid-template-columns: 1fr;
+        align-items: center;
+        border-left: 1px solid #172417;
+      }
+
+      .clearance-meta {
+        padding: 0 14px;
+        color: #8d998a;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.55;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .toolbar-icons {
+        display: flex;
+        justify-content: space-around;
+        color: #7f8b7d;
+        font-size: 16px;
+      }
+
+      .main {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr) 320px;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .sidebar,
+      .details {
+        min-height: 0;
+        overflow: auto;
+        background: rgba(4, 8, 5, 0.9);
+      }
+
+      .sidebar {
+        border-right: 1px solid var(--line);
+      }
+
+      .details {
+        border-left: 1px solid var(--line);
+      }
+
+      .panel {
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(12, 18, 13, 0.92), rgba(5, 9, 6, 0.92));
+        min-height: 0;
+      }
+
+      .panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 34px;
+        padding: 0 12px;
+        border-bottom: 1px solid #1a261b;
+        background: rgba(5, 8, 6, 0.66);
+        color: #aebaaa;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .panel-body {
+        padding: 12px;
+        min-height: 0;
+      }
+
+      .explain {
+        margin-bottom: 10px;
+        padding: 9px 10px;
+        border: 1px solid #213323;
+        border-radius: 6px;
+        background: rgba(7, 12, 8, 0.88);
+        color: #aebdab;
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .explain strong {
+        color: #e9fbe6;
+      }
+
+      .search-row {
+        display: grid;
+        grid-template-columns: 1fr 30px;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+
+      .input,
+      .select,
+      .textarea {
+        width: 100%;
+        border: 1px solid #223324;
+        border-radius: 6px;
+        outline: none;
+        background: #050805;
+        color: var(--text);
+      }
+
+      .input,
+      .select {
+        height: 30px;
+        padding: 0 9px;
+        font-size: 12px;
+      }
+
+      .textarea {
+        height: clamp(116px, 17vh, 170px);
+        min-height: 96px;
+        resize: vertical;
+        padding: 12px;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .input:focus,
+      .select:focus,
+      .textarea:focus {
+        border-color: #37e33f;
+        box-shadow: 0 0 0 2px var(--focus);
+      }
+
+      .icon-btn,
+      .button {
+        border: 1px solid #2b3d2d;
+        border-radius: 6px;
+        background: #0b100c;
+        color: #c7d8c3;
+      }
+
+      .icon-btn {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+      }
+
+      .button {
+        min-height: 32px;
+        padding: 0 13px;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .button:hover,
+      .chip:hover {
+        border-color: var(--green);
+        color: #e7ffe5;
+      }
+
+      .button.primary {
+        background: #143d18;
+        border-color: #37e33f;
+        color: #f3fff1;
+      }
+
+      .button.danger {
+        border-color: #743333;
+        color: #ffc5c1;
+      }
+
+      .button:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+
+      .tree {
+        display: grid;
+        gap: 8px;
+        color: #a6b3a2;
+        font-size: 11px;
+      }
+
+      .tree-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .tree-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .folder {
+        color: var(--green);
+      }
+
+      .lock {
+        color: #758271;
+      }
+
+      .kv {
+        display: grid;
+        gap: 9px;
+        color: #82907f;
+        font-size: 11px;
+      }
+
+      .kv-row {
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 8px;
+      }
+
+      .kv-value {
+        color: #c6d5c2;
+      }
+
+      .healthy {
+        color: var(--green);
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-rows: minmax(250px, 1fr) minmax(220px, 38%);
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .graph-panel {
+        position: relative;
+        min-height: 0;
+        overflow: hidden;
+        border-bottom: 1px solid var(--line);
+        background:
+          linear-gradient(rgba(55, 227, 63, 0.045) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(55, 227, 63, 0.045) 1px, transparent 1px),
+          linear-gradient(135deg, rgba(56, 200, 255, 0.06), transparent 44%),
+          rgba(3, 7, 4, 0.92);
+        background-size: 28px 28px, 28px 28px, auto, auto;
+      }
+
+      .graph-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 46px;
+        padding: 0 14px;
+        border-bottom: 1px solid rgba(31, 45, 34, 0.86);
+        background: rgba(3, 6, 4, 0.74);
+      }
+
+      .graph-title {
+        color: #dbe8d7;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+
+      .graph-tools {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .graph-tools .select {
+        width: 104px;
+        height: 26px;
+        font-size: 10px;
+        text-transform: uppercase;
+      }
+
+      .inferred {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: #a9bcc9;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .graph-stage {
+        position: absolute;
+        inset: 46px 0 0;
+      }
+
+      .sigma-stage {
+        position: absolute;
+        inset: 0;
+      }
+
+      .sigma-canvas {
+        position: absolute;
+        inset: 0;
+      }
+
+      .graph-overlay {
+        position: absolute;
+        left: 14px;
+        top: 12px;
+        display: grid;
+        gap: 8px;
+        width: min(340px, calc(100% - 28px));
+        pointer-events: none;
+      }
+
+      .graph-summary {
+        width: fit-content;
+        max-width: 100%;
+        padding: 8px 10px;
+        border: 1px solid rgba(52, 81, 58, 0.92);
+        border-radius: 6px;
+        background: rgba(4, 8, 5, 0.82);
+        color: #d4e2d0;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .graph-status {
+        min-height: 34px;
+        padding: 9px 10px;
+        border: 1px solid #223324;
+        border-radius: 6px;
+        background: rgba(5, 8, 6, 0.88);
+        color: #aebdab;
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+
+      .graph-status.error {
+        border-color: #6d302f;
+        color: #ffc4c1;
+      }
+
+      .edges {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .node {
+        position: absolute;
+        display: grid;
+        justify-items: center;
+        gap: 6px;
+        width: 140px;
+        margin-left: -70px;
+        margin-top: -46px;
+        text-align: center;
+        color: #b8c8d2;
+        font-size: 11px;
+      }
+
+      .node-core {
+        display: grid;
+        place-items: center;
+        width: 48px;
+        height: 48px;
+        border: 2px solid currentColor;
+        border-radius: 50%;
+        background: rgba(6, 10, 7, 0.92);
+        box-shadow: 0 0 22px color-mix(in srgb, currentColor 35%, transparent);
+        font-size: 21px;
+        font-weight: 900;
+      }
+
+      .node.red {
+        color: var(--red);
+      }
+
+      .node.blue {
+        color: var(--blue);
+      }
+
+      .node.green {
+        color: var(--green);
+      }
+
+      .node.yellow {
+        color: var(--yellow);
+      }
+
+      .node.purple {
+        color: var(--purple);
+      }
+
+      .node.orange {
+        color: var(--orange);
+      }
+
+      .node-label {
+        max-width: 132px;
+        color: #d8e6d4;
+        overflow-wrap: anywhere;
+      }
+
+      .node-type {
+        color: #869482;
+      }
+
+      .legend {
+        position: absolute;
+        left: 14px;
+        bottom: 12px;
+        width: 116px;
+        padding: 10px;
+        border: 1px solid #223324;
+        border-radius: 6px;
+        background: rgba(4, 8, 5, 0.82);
+        font-size: 10px;
+      }
+
+      .legend-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-top: 6px;
+        color: #b4c4b0;
+      }
+
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .minimap {
+        position: absolute;
+        right: 16px;
+        bottom: 12px;
+        width: 140px;
+        height: 94px;
+        border: 1px solid #34513a;
+        background: rgba(4, 8, 5, 0.78);
+      }
+
+      .bottom {
+        display: grid;
+        grid-template-columns: minmax(320px, 0.9fr) minmax(360px, 1.4fr);
+        min-width: 0;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .editor-panel {
+        border-right: 1px solid var(--line);
+        display: grid;
+        grid-template-rows: 34px minmax(0, 1fr);
+        overflow: hidden;
+      }
+
+      .editor-panel .panel-body {
+        overflow: auto;
+      }
+
+      .editor-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .samples {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+
+      .dataset-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+
+      .dataset-grid .button {
+        min-width: 0;
+        white-space: normal;
+        line-height: 1.25;
+        padding-top: 6px;
+        padding-bottom: 6px;
+      }
+
+      .evidence-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .evidence-item {
+        padding: 9px;
+        border: 1px solid #213323;
+        border-radius: 6px;
+        background: #070b08;
+      }
+
+      .evidence-predicate {
+        color: var(--blue);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .evidence-text {
+        margin-top: 5px;
+        color: #c9d8c5;
+        font-size: 11px;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+
+      .chip {
+        border: 1px solid #2b3d2d;
+        border-radius: 6px;
+        background: #0b100c;
+        color: #bad0b5;
+        padding: 5px 7px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .results-panel {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: 34px minmax(0, 1fr);
+        overflow: hidden;
+      }
+
+      .results-panel .panel-body {
+        overflow: hidden;
+      }
+
+      .results-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #859381;
+        font-size: 10px;
+      }
+
+      .table-wrap {
+        overflow: auto;
+        height: 100%;
+        max-height: none;
+      }
+
+      .virtual-table {
+        min-width: 680px;
+        border: 1px solid #1c2a1e;
+        border-radius: 6px;
+        overflow: hidden;
+      }
+
+      .virtual-head,
+      .virtual-row {
+        display: grid;
+        align-items: stretch;
+      }
+
+      .virtual-head {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #0a100b;
+      }
+
+      .virtual-scroll {
+        position: relative;
+        height: min(232px, calc(38vh - 92px));
+        min-height: 120px;
+        overflow: auto;
+        background: #050805;
+      }
+
+      .virtual-spacer {
+        position: relative;
+        min-width: 100%;
+      }
+
+      .virtual-row {
+        position: absolute;
+        left: 0;
+        right: 0;
+        min-height: 34px;
+        border-bottom: 1px solid #1c2a1e;
+        background: rgba(5, 8, 6, 0.94);
+        cursor: pointer;
+      }
+
+      .virtual-row:hover,
+      .virtual-row.hovered {
+        background: rgba(27, 61, 31, 0.72);
+      }
+
+      .virtual-row.selected {
+        background: rgba(20, 61, 24, 0.72);
+        box-shadow: inset 3px 0 0 var(--green);
+      }
+
+      .virtual-cell {
+        min-width: 0;
+        padding: 9px 10px;
+        color: #c8d7c4;
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        border-right: 1px solid #1c2a1e;
+      }
+
+      .virtual-head .virtual-cell {
+        color: #aab7a6;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 11px;
+      }
+
+      th,
+      td {
+        min-width: 120px;
+        padding: 9px 10px;
+        border-bottom: 1px solid #1c2a1e;
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        position: sticky;
+        top: 0;
+        background: #0a100b;
+        color: #aab7a6;
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      td {
+        color: #c8d7c4;
+        overflow-wrap: anywhere;
+      }
+
+      .raw {
+        margin: 0;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        color: #c9d8c5;
+        font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 11px;
+        line-height: 1.55;
+      }
+
+      .details-card {
+        margin: 12px;
+        border: 1px solid #213323;
+        border-radius: 6px;
+        background: rgba(7, 12, 8, 0.86);
+      }
+
+      .entity-head {
+        display: grid;
+        grid-template-columns: 48px 1fr;
+        gap: 12px;
+        align-items: center;
+        padding: 14px;
+      }
+
+      .avatar {
+        display: grid;
+        place-items: center;
+        width: 42px;
+        height: 42px;
+        border: 2px solid var(--green);
+        border-radius: 6px;
+        color: var(--green);
+        font-size: 21px;
+        font-weight: 900;
+      }
+
+      .entity-name {
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .entity-sub {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .properties {
+        width: 100%;
+      }
+
+      .status {
+        min-height: 38px;
+        margin-top: 10px;
+        padding: 10px;
+        border: 1px solid #213323;
+        border-radius: 6px;
+        background: #070b08;
+        color: #aebdab;
+        font-size: 11px;
+        overflow-wrap: anywhere;
+      }
+
+      .status.error {
+        border-color: #6d302f;
+        color: #ffc4c1;
+      }
+
+      .status.ok {
+        border-color: #2f6634;
+        color: #caffc7;
+      }
+
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 0;
+        padding: 0 16px;
+        border-top: 1px solid var(--line);
+        background: #030503;
+        color: #788575;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      .footer-left {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .pulse {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 10px rgba(143, 209, 106, 0.8);
+      }
+
+      /* Intelligence-console skin inspired by the OMRYA reference UI. */
+      :root {
+        --bg: #020812;
+        --panel: #07111c;
+        --panel-2: #0a1624;
+        --panel-3: #0d1b2b;
+        --line: #13283c;
+        --line-bright: #254762;
+        --text: #d8e5ef;
+        --muted: #7c8ca1;
+        --blue: #2f9cff;
+        --red: #ff6673;
+        --green: #69df78;
+        --yellow: #efc84a;
+        --purple: #b76eff;
+        --orange: #f59f54;
+        --black: #020812;
+        --ink: #050b14;
+        --focus: rgba(47, 156, 255, 0.22);
+      }
+
+      body {
+        background:
+          radial-gradient(circle at 50% 26%, rgba(47, 156, 255, 0.14), transparent 30%),
+          linear-gradient(90deg, rgba(47, 156, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(0deg, rgba(47, 156, 255, 0.028) 1px, transparent 1px),
+          #020812;
+        background-size: auto, 64px 64px, 64px 64px, auto;
+        color: var(--text);
+      }
+
+      .shell {
+        border-color: #0f2030;
+        background: rgba(2, 8, 18, 0.96);
+      }
+
+      .topbar {
+        grid-template-columns: 252px minmax(560px, 1fr) 330px;
+        background: linear-gradient(180deg, rgba(5, 13, 24, 0.98), rgba(2, 8, 18, 0.98));
+      }
+
+      .brand,
+      .repo-ingest-bar,
+      .clearance {
+        border-color: #12273b;
+      }
+
+      .seal {
+        width: 40px;
+        height: 40px;
+        border-color: rgba(216, 229, 239, 0.9);
+        border-radius: 10px;
+        background:
+          linear-gradient(135deg, transparent 35%, rgba(47, 156, 255, 0.28) 36% 64%, transparent 65%),
+          #06111d;
+        color: #f3f8fc;
+        font-size: 18px;
+      }
+
+      .brand-title {
+        color: #f7fbff;
+        font-size: 20px;
+        letter-spacing: 0.2em;
+      }
+
+      .brand-subtitle {
+        color: #8798ae;
+        font-size: 10px;
+      }
+
+      .top-center {
+        display: grid;
+        grid-template-rows: 34px 30px;
+        min-width: 0;
+        border-right: 1px solid #12273b;
+      }
+
+      .nav {
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 10px 2px;
+      }
+
+      .nav-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        height: 28px;
+        padding: 0 12px;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        background: transparent;
+        color: #8393a7;
+      }
+
+      .nav-item.active {
+        border-color: #17324d;
+        background: linear-gradient(180deg, rgba(47, 156, 255, 0.18), rgba(47, 156, 255, 0.06));
+        color: #eef7ff;
+        box-shadow: inset 0 -2px 0 rgba(47, 156, 255, 0.54);
+      }
+
+      .repo-ingest-bar {
+        grid-template-columns: minmax(260px, 1fr) 112px 100px;
+        padding: 0 14px 8px;
+        border-right: 0;
+      }
+
+      .input,
+      .select,
+      .textarea {
+        border-color: #17324a;
+        background: #050d17;
+        color: var(--text);
+      }
+
+      .input:focus,
+      .select:focus,
+      .textarea:focus {
+        border-color: var(--blue);
+        box-shadow: 0 0 0 2px var(--focus);
+      }
+
+      .clearance {
+        grid-template-columns: 1fr 132px;
+        align-content: center;
+        gap: 6px;
+        padding: 0 12px;
+        background: #030a14;
+      }
+
+      .top-status {
+        display: grid;
+        gap: 2px;
+        color: #8b9caf;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .top-status strong {
+        color: #d8e5ef;
+        font-weight: 800;
+      }
+
+      .status-dot {
+        display: inline-block;
+        width: 7px;
+        height: 7px;
+        margin-right: 6px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 10px rgba(105, 223, 120, 0.85);
+      }
+
+      .toolbar-icons {
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .icon-btn,
+      .button,
+      .chip {
+        border-color: #203a52;
+        border-radius: 4px;
+        background: #07111c;
+        color: #c7d4e3;
+      }
+
+      .icon-btn {
+        width: 26px;
+        height: 26px;
+        color: #8b9caf;
+      }
+
+      .button.primary {
+        border-color: #2f7ec4;
+        background: linear-gradient(180deg, #1a6fb9, #14528a);
+        color: #f2f8ff;
+      }
+
+      .button:hover,
+      .chip:hover {
+        border-color: var(--blue);
+        color: #f2f8ff;
+      }
+
+      .button.block {
+        width: 100%;
+        margin-top: 10px;
+      }
+
+      .main {
+        grid-template-columns: 252px minmax(0, 1fr) 370px;
+      }
+
+      .sidebar,
+      .details {
+        background: rgba(4, 11, 20, 0.94);
+      }
+
+      .panel {
+        border-color: var(--line);
+        background: linear-gradient(180deg, rgba(9, 20, 33, 0.96), rgba(4, 11, 20, 0.96));
+      }
+
+      .panel-header {
+        min-height: 34px;
+        border-color: #152b40;
+        background: rgba(8, 17, 29, 0.84);
+        color: #aab8c7;
+      }
+
+      .kv {
+        gap: 8px;
+      }
+
+      .kv-row {
+        grid-template-columns: 96px minmax(0, 1fr);
+      }
+
+      .kv-row > span:first-child {
+        color: #7f8da1;
+      }
+
+      .kv-value {
+        color: #d3dfeb;
+        text-align: right;
+        overflow-wrap: anywhere;
+      }
+
+      .healthy {
+        color: var(--green);
+      }
+
+      .pipeline,
+      .recent-list,
+      .relation-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .pipeline-row,
+      .relation-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        color: #c0cfde;
+        font-size: 11px;
+      }
+
+      .pipeline-dot {
+        display: inline-block;
+        width: 11px;
+        height: 11px;
+        margin-right: 8px;
+        border-radius: 50%;
+        background: radial-gradient(circle, #d8ffe2 0 18%, var(--green) 22% 100%);
+      }
+
+      .recent-item {
+        display: grid;
+        grid-template-columns: 3px 1fr;
+        gap: 8px;
+        min-width: 0;
+        color: #c0cfde;
+        font-size: 11px;
+      }
+
+      .recent-bar {
+        background: linear-gradient(180deg, var(--blue), transparent);
+      }
+
+      .recent-meta,
+      .sidebar-mini {
+        color: #7f8da1;
+        font-size: 10px;
+        text-transform: uppercase;
+      }
+
+      .sidebar-mini {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .workspace {
+        grid-template-rows: minmax(360px, 1fr) minmax(260px, 40%);
+      }
+
+      .graph-panel {
+        background:
+          radial-gradient(circle at 48% 45%, rgba(47, 156, 255, 0.12), transparent 32%),
+          linear-gradient(rgba(47, 156, 255, 0.045) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(47, 156, 255, 0.04) 1px, transparent 1px),
+          #030b16;
+        background-size: auto, 30px 30px, 30px 30px, auto;
+      }
+
+      .graph-head {
+        background: rgba(6, 15, 26, 0.92);
+        border-color: #152b40;
+      }
+
+      .graph-title {
+        color: #dce9f5;
+      }
+
+      .graph-tools {
+        gap: 8px;
+      }
+
+      .graph-tools .select {
+        width: 138px;
+      }
+
+      .graph-summary,
+      .graph-status,
+      .legend,
+      .minimap,
+      .details-card,
+      .status,
+      .evidence-item {
+        border-color: #1b3852;
+        background: rgba(5, 13, 23, 0.86);
+      }
+
+      .graph-summary {
+        color: #d8e5ef;
+      }
+
+      .minimap {
+        right: 26px;
+        bottom: 26px;
+        border-color: #456079;
+      }
+
+      .legend {
+        left: auto;
+        right: 184px;
+        bottom: 26px;
+      }
+
+      .bottom {
+        grid-template-columns: minmax(340px, 0.95fr) minmax(380px, 1.25fr);
+      }
+
+      .editor-panel,
+      .results-panel {
+        background: #050d17;
+      }
+
+      .query-tabs,
+      .detail-tabs {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .tab {
+        color: #7f8da1;
+        font-size: 10px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .tab.active {
+        color: #e5f1fc;
+      }
+
+      .textarea {
+        height: clamp(122px, 17vh, 190px);
+        background:
+          linear-gradient(90deg, rgba(47, 156, 255, 0.05) 1px, transparent 1px),
+          #040b14;
+        background-size: 28px 28px;
+      }
+
+      .dataset-grid .button,
+      .samples .chip {
+        font-size: 9px;
+      }
+
+      .virtual-table {
+        border-color: #172f45;
+      }
+
+      .virtual-head,
+      th {
+        background: #071524;
+      }
+
+      .virtual-scroll,
+      .virtual-row {
+        background: #050d17;
+      }
+
+      .virtual-row {
+        border-color: #12283c;
+      }
+
+      .virtual-row:hover,
+      .virtual-row.hovered {
+        background: rgba(47, 156, 255, 0.16);
+      }
+
+      .virtual-row.selected {
+        background: rgba(47, 156, 255, 0.2);
+        box-shadow: inset 3px 0 0 var(--blue);
+      }
+
+      .virtual-cell {
+        border-color: #12283c;
+      }
+
+      .avatar {
+        border-color: var(--blue);
+        background: rgba(47, 156, 255, 0.12);
+        color: var(--blue);
+      }
+
+      .entity-name {
+        color: #e5f1fc;
+      }
+
+      .entity-sub {
+        color: #8b9caf;
+      }
+
+      .detail-tabs {
+        padding: 0 14px 10px;
+        border-bottom: 1px solid #152b40;
+      }
+
+      .schema-tabs {
+        padding: 0 0 10px;
+      }
+
+      .relation-row strong {
+        max-width: 150px;
+        color: #d3dfeb;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .connected-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+
+      .schema-kv {
+        margin-top: 8px;
+      }
+
+      .footer {
+        background: #030a14;
+        border-color: #12273b;
+        color: #7f8da1;
+      }
+
+      @media (max-width: 1180px) {
+        body {
+          overflow: auto;
+        }
+
+        #app,
+        .shell {
+          min-height: 100vh;
+          height: auto;
+          overflow: visible;
+        }
+
+        .topbar,
+        .main,
+        .bottom {
+          grid-template-columns: 1fr;
+        }
+
+        .topbar {
+          grid-template-rows: 64px 64px 64px;
+        }
+
+        .repo-ingest-bar {
+          grid-template-columns: minmax(160px, 1fr) 96px 132px;
+        }
+
+        .sidebar,
+        .details {
+          display: none;
+        }
+
+        .workspace {
+          grid-template-rows: 360px auto;
+          overflow: visible;
+        }
+
+        .bottom {
+          min-height: auto;
+          overflow: visible;
+        }
+
+        .editor-panel {
+          border-right: 0;
+          overflow: visible;
+        }
+
+        .editor-panel,
+        .results-panel {
+          display: block;
+        }
+
+        .editor-panel .panel-body,
+        .results-panel .panel-body {
+          overflow: visible;
+        }
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "preact": "https://cdnjs.cloudflare.com/ajax/libs/preact/10.25.4/preact.module.js",
+          "preact/hooks": "https://cdnjs.cloudflare.com/ajax/libs/preact/10.25.4/hooks.module.js"
+        }
+      }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/graphology/0.26.0/graphology.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sigma.js/3.0.2/sigma.min.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module">
+      import { h, render } from "preact";
+      import { useEffect, useMemo, useRef, useState } from "preact/hooks";
+
+      const AVR_QUERY_ALL = "SELECT * WHERE { ?s ?p ?o }";
+
+      const sampleQueries = [
+        {
+          label: "All Memory",
+          text: "SELECT * WHERE { ?s ?p ?o }",
+        },
+        {
+          label: "Hypotheses",
+          text: "SELECT * WHERE { ?s <http://omrya.local/avr/hasHypothesis> ?o }",
+        },
+        {
+          label: "Generated Probes",
+          text: "SELECT * WHERE { ?s <http://omrya.local/avr/generatedProbe> ?o }",
+        },
+        {
+          label: "Observed Signals",
+          text: "SELECT * WHERE { ?s <http://omrya.local/avr/observedSignal> ?o }",
+        },
+        {
+          label: "Reproducers",
+          text: "SELECT * WHERE { ?s <http://omrya.local/avr/derivedReproducer> ?o }",
+        },
+        {
+          label: "Patch Links",
+          text: "SELECT * WHERE { ?s <http://omrya.local/avr/proposedPatch> ?o }",
+        },
+      ];
+
+      const fallbackDatasetCatalog = [
+        {
+          name: "trace",
+          label: "AVR Trace",
+          description: "Autonomous vulnerability research loop with hypotheses, probes, signals, reproducers, patches, and evidence.",
+          query: sampleQueries[0].text,
+          focus: "agent-run",
+          triples: [
+            ["http://omrya.local/avr/run/sparql-agent-001", "http://omrya.local/avr/hasHypothesis", "http://omrya.local/avr/hypothesis/federation-egress"],
+            ["http://omrya.local/avr/run/sparql-agent-001", "http://omrya.local/avr/hasHypothesis", "http://omrya.local/avr/hypothesis/property-path-dos"],
+            ["http://omrya.local/avr/run/sparql-agent-001", "http://omrya.local/avr/generatedProbe", "http://omrya.local/avr/probe/service-uri-001"],
+            ["http://omrya.local/avr/run/sparql-agent-001", "http://omrya.local/avr/generatedProbe", "http://omrya.local/avr/probe/path-star-002"],
+            ["http://omrya.local/avr/hypothesis/federation-egress", "http://omrya.local/avr/targetsComponent", "http://omrya.local/target/federated-endpoint"],
+            ["http://omrya.local/avr/hypothesis/property-path-dos", "http://omrya.local/avr/targetsComponent", "http://omrya.local/target/query-planner"],
+            ["http://omrya.local/avr/probe/service-uri-001", "http://omrya.local/avr/observedSignal", "http://omrya.local/avr/signal/federation-egress-blocked"],
+            ["http://omrya.local/avr/probe/path-star-002", "http://omrya.local/avr/observedSignal", "http://omrya.local/avr/signal/planner-timeout"],
+            ["http://omrya.local/avr/signal/federation-egress-blocked", "http://omrya.local/avr/failureClass", "FederationEgress"],
+            ["http://omrya.local/avr/signal/planner-timeout", "http://omrya.local/avr/failureClass", "PlannerBlowup"],
+            ["http://omrya.local/avr/probe/path-star-002", "http://omrya.local/avr/derivedReproducer", "http://omrya.local/avr/reproducer/min-path-002"],
+            ["http://omrya.local/avr/reproducer/min-path-002", "http://omrya.local/avr/proposedPatch", "http://omrya.local/avr/patch/path-depth-limit"],
+            ["http://omrya.local/avr/reproducer/min-path-002", "http://omrya.local/avr/supportedByEvidence", "http://omrya.local/avr/evidence/timeout-log-002"],
+            ["http://omrya.local/avr/patch/path-depth-limit", "http://omrya.local/avr/mitigates", "http://omrya.local/avr/hypothesis/property-path-dos"],
+            ["http://omrya.local/avr/run/sparql-agent-001", "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "http://omrya.local/avr/AgentRun"],
+            ["http://omrya.local/avr/hypothesis/property-path-dos", "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "http://omrya.local/avr/Hypothesis"],
+            ["http://omrya.local/avr/probe/path-star-002", "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "http://omrya.local/avr/Probe"],
+            ["http://omrya.local/avr/reproducer/min-path-002", "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "http://omrya.local/avr/Reproducer"],
+          ],
+        },
+        {
+          name: "coverage",
+          label: "SPARQL Surface",
+          description: "Semantic coverage trace across parser, planner, federation, named graph, entailment, and RDF-star targets.",
+          query: "SELECT * WHERE { ?s <http://omrya.local/avr/coversFeature> ?o }",
+          focus: "coverage",
+          triples: [
+            ["http://omrya.local/avr/run/semantic-coverage-014", "http://omrya.local/avr/coversFeature", "http://omrya.local/sparql/feature/property-paths"],
+            ["http://omrya.local/avr/run/semantic-coverage-014", "http://omrya.local/avr/coversFeature", "http://omrya.local/sparql/feature/federation-service"],
+            ["http://omrya.local/avr/run/semantic-coverage-014", "http://omrya.local/avr/coversFeature", "http://omrya.local/rdf/feature/named-graphs"],
+            ["http://omrya.local/avr/run/semantic-coverage-014", "http://omrya.local/avr/coversFeature", "http://omrya.local/rdf/feature/rdf-star"],
+            ["http://omrya.local/sparql/feature/property-paths", "http://omrya.local/avr/hasFailureClass", "PlannerBlowup"],
+            ["http://omrya.local/sparql/feature/federation-service", "http://omrya.local/avr/hasFailureClass", "FederationEgress"],
+            ["http://omrya.local/rdf/feature/named-graphs", "http://omrya.local/avr/hasFailureClass", "NamedGraphLeakage"],
+            ["http://omrya.local/rdf/feature/rdf-star", "http://omrya.local/avr/hasFailureClass", "ParserCrash"],
+            ["http://omrya.local/avr/run/semantic-coverage-014", "http://omrya.local/avr/generatedProbe", "http://omrya.local/avr/probe/rdf-star-nesting-004"],
+            ["http://omrya.local/avr/probe/rdf-star-nesting-004", "http://omrya.local/avr/observedSignal", "http://omrya.local/avr/signal/parser-rejects-nesting"],
+          ],
+        },
+        {
+          name: "entity",
+          label: "Entity Graph",
+          description: "Person, device, email, account, and infrastructure edges.",
+          query: "SELECT * WHERE { ?s <http://omrya.local/relation/communicatedWith> ?o }",
+          focus: "entity",
+          triples: [
+            ["http://omrya.local/person/12345", "http://omrya.local/relation/communicatedWith", "http://omrya.local/device/776655"],
+            ["http://omrya.local/person/12345", "http://omrya.local/relation/communicatedWith", "http://omrya.local/phone/12025550198"],
+            ["http://omrya.local/person/12345", "http://omrya.local/relation/hasEmail", "mohammed.k@mail.ru"],
+            ["http://omrya.local/person/12345", "http://omrya.local/relation/visited", "Damascus, Syria"],
+            ["http://omrya.local/person/12345", "http://omrya.local/relation/ownsAccount", "http://omrya.local/account/334455"],
+            ["http://omrya.local/device/776655", "http://omrya.local/relation/usesInfrastructure", "http://omrya.local/ip/203.0.113.45"],
+            ["http://omrya.local/phone/12025550198", "http://omrya.local/relation/usesInfrastructure", "http://omrya.local/ip/198.51.100.23"],
+            ["http://omrya.local/person/12345", "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "http://omrya.local/type/Person"],
+            ["http://omrya.local/device/776655", "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "http://omrya.local/type/Device"],
+          ],
+        },
+        {
+          name: "org",
+          label: "Org Links",
+          description: "Organizations, documents, and financial links.",
+          query: "SELECT * WHERE { ?s <http://omrya.local/relation/employedBy> ?o }",
+          focus: "entity",
+          triples: [
+            ["http://omrya.local/person/12345", "http://omrya.local/relation/employedBy", "http://omrya.local/org/9876"],
+            ["http://omrya.local/person/12345", "http://omrya.local/relation/registeredTo", "http://omrya.local/document/445566"],
+            ["http://omrya.local/account/334455", "http://omrya.local/relation/heldBy", "http://omrya.local/org/9876"],
+            ["http://omrya.local/document/445566", "http://omrya.local/relation/issuedBy", "Syrian Passport Authority"],
+            ["http://omrya.local/org/9876", "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", "http://omrya.local/type/Organization"],
+          ],
+        },
+      ];
+
+      function App() {
+        const [token, setToken] = useState(() => localStorage.getItem("omrya.session") || "");
+        const [user, setUser] = useState("analyst");
+        const [password, setPassword] = useState("secret");
+        const [auths, setAuths] = useState("");
+        const [visibility, setVisibility] = useState("");
+        const [resultFormat, setResultFormat] = useState("json");
+        const [query, setQuery] = useState(sampleQueries[0].text);
+        const [status, setStatus] = useState({ tone: "", text: "Ready. Sign in, load an AVR dataset, then query the evidence graph." });
+        const [busy, setBusy] = useState(false);
+        const [ingestBusy, setIngestBusy] = useState(false);
+        const [ingestStage, setIngestStage] = useState("");
+        const [repoTarget, setRepoTarget] = useState("");
+        const [repoObjective, setRepoObjective] = useState("Map offensive query evolution surfaces from authorized source code.");
+        const [repoMode, setRepoMode] = useState("clone");
+        const [result, setResult] = useState(() => {
+          const rows = rowsFromTriples(fallbackDatasetCatalog[0].triples);
+          return { rows, columns: ["s", "p", "o", "g"], raw: "" };
+        });
+        const [datasets, setDatasets] = useState(fallbackDatasetCatalog);
+        const [graphRows, setGraphRows] = useState(() => rowsFromTriples(fallbackDatasetCatalog[0].triples));
+        const [graphStatus, setGraphStatus] = useState("Showing the default autonomous vulnerability research trace preview. Load Graph Exploit Memory for the server-backed architecture graph.");
+        const [selectedRowKey, setSelectedRowKey] = useState("");
+        const [hoveredRowKey, setHoveredRowKey] = useState("");
+        const [selectedNode, setSelectedNode] = useState("");
+        const [metrics, setMetrics] = useState("omrya_server_up pending");
+        const [logs, setLogs] = useState([]);
+
+        useEffect(() => {
+          refreshDatasets();
+          refreshMetrics();
+        }, []);
+
+        useEffect(() => {
+          if (!ingestBusy) return;
+          const stages = ["auth", "clone", "rdf", "graph"];
+          let index = Math.max(0, stages.indexOf(ingestStage));
+          const timer = window.setInterval(() => {
+            index = Math.min(stages.length - 1, index + 1);
+            setIngestStage(stages[index]);
+          }, 1100);
+          return () => window.clearInterval(timer);
+        }, [ingestBusy]);
+
+        async function refreshDatasets() {
+          try {
+            const response = await fetch("/avr/datasets", { cache: "no-store" });
+            if (!response.ok) throw new Error(response.statusText);
+            const body = await response.json();
+            if (Array.isArray(body.datasets) && body.datasets.length) {
+              setDatasets(body.datasets);
+              setQuery(body.datasets[0].query || AVR_QUERY_ALL);
+              setGraphStatus("Server advertised " + body.datasets.length + " AVR memory datasets. Load one to persist it into the RDF store.");
+            }
+          } catch (_) {
+            setDatasets(fallbackDatasetCatalog);
+          }
+        }
+
+        async function refreshMetrics() {
+          try {
+            const response = await fetch("/metrics", { cache: "no-store" });
+            setMetrics(await response.text());
+          } catch (error) {
+            setMetrics("metrics unavailable: " + error.message);
+          }
+        }
+
+        async function refreshLogs(nextToken) {
+          const session = nextToken || token;
+          if (!session) return;
+          try {
+            const response = await fetch("/logs?table=sro&limit=8", {
+              cache: "no-store",
+              headers: { "X-Omrya-Token": session },
+            });
+            if (response.ok) {
+              const text = await response.text();
+              setLogs(text.trim() ? text.trim().split("\n").reverse() : []);
+            }
+          } catch (_) {
+          }
+        }
+
+        async function signIn(event) {
+          if (event) event.preventDefault();
+          setBusy(true);
+          setStatus({ tone: "", text: "Signing in..." });
+          try {
+            const path = "/signin?user=" + encodeURIComponent(user) + "&password=" + encodeURIComponent(password);
+            const response = await fetch(path, { method: "POST" });
+            const body = await response.text();
+            if (!response.ok) throw new Error(body.trim() || response.statusText);
+            const nextToken = body.trim();
+            localStorage.setItem("omrya.session", nextToken);
+            setToken(nextToken);
+            setStatus({ tone: "ok", text: "Signed in as " + user + "." });
+            await refreshLogs(nextToken);
+            await refreshMetrics();
+            return nextToken;
+          } catch (error) {
+            setStatus({ tone: "error", text: error.message });
+            throw error;
+          } finally {
+            setBusy(false);
+          }
+        }
+
+        async function ensureToken() {
+          if (token) return token;
+          return await signIn();
+        }
+
+        async function runQuery() {
+          setBusy(true);
+          setStatus({ tone: "", text: "Dispatching SPARQL request..." });
+          const started = performance.now();
+          try {
+            const params = new URLSearchParams();
+            if (auths.trim()) params.set("query.auth", auths.trim());
+            if (visibility.trim()) params.set("conf.cv", visibility.trim());
+            if (resultFormat) params.set("query.resultformat", resultFormat);
+            const response = await fetch("/sparql?" + params.toString(), {
+              method: "POST",
+              headers: {
+                "Content-Type": "text/plain; charset=utf-8",
+                "X-Omrya-Token": token,
+              },
+              body: query,
+            });
+            const body = await response.text();
+            if (!response.ok) throw new Error(body.trim() || response.statusText);
+            const parsed = parseSparqlResult(body);
+            setResult(parsed);
+            if (parsed.rows.length) {
+              setGraphRows(parsed.rows);
+              setSelectedRowKey(rowKey(parsed.rows[0], 0));
+              setSelectedNode(parsed.rows[0].s || parsed.rows[0].o || "");
+              setGraphStatus("Graph updated from " + parsed.rows.length + " query result row" + (parsed.rows.length === 1 ? "" : "s") + ".");
+            } else if (parsed.raw) {
+              setSelectedRowKey("");
+              setSelectedNode("");
+              setGraphStatus("No graphable rows returned for this query.");
+            }
+            const elapsed = Math.round(performance.now() - started);
+            const rows = parsed.rows.length;
+            const detail = body.trim() ? rows + " result row" + (rows === 1 ? "" : "s") : "update accepted";
+            setStatus({ tone: "ok", text: detail + " in " + elapsed + " ms." });
+            await refreshLogs();
+            await refreshMetrics();
+          } catch (error) {
+            setStatus({ tone: "error", text: error.message });
+          } finally {
+            setBusy(false);
+          }
+        }
+
+        async function loadDataset(dataset) {
+          setBusy(true);
+          setStatus({ tone: "", text: "Loading " + dataset.label + " dataset..." });
+          try {
+            const session = await ensureToken();
+            let rows;
+            let nextQuery = dataset.query || AVR_QUERY_ALL;
+            if (dataset.name && !dataset.triples) {
+              const response = await fetch("/avr/seed?dataset=" + encodeURIComponent(dataset.name), {
+                method: "POST",
+                headers: { "X-Omrya-Token": session },
+              });
+              const body = await response.text();
+              if (!response.ok) throw new Error(body.trim() || response.statusText);
+              const seeded = JSON.parse(body);
+              rows = Array.isArray(seeded.rows) ? seeded.rows : [];
+              nextQuery = seeded.query || nextQuery;
+            } else {
+              const insert = "INSERT DATA { " + dataset.triples.map((triple) =>
+                ntTerm(triple[0]) + " " + ntTerm(triple[1]) + " " + ntTerm(triple[2]) + " ."
+              ).join(" ") + " }";
+              const response = await fetch("/sparql", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "text/plain; charset=utf-8",
+                  "X-Omrya-Token": session,
+                },
+                body: insert,
+              });
+              const body = await response.text();
+              if (!response.ok) throw new Error(body.trim() || response.statusText);
+              rows = rowsFromTriples(dataset.triples);
+            }
+            setGraphRows(rows);
+            setGraphStatus("Loaded " + dataset.label + " into the triplestore and graphed " + rows.length + " triples.");
+            setQuery(nextQuery);
+            setResult({ columns: ["s", "p", "o", "g"], rows, raw: "" });
+            setSelectedRowKey(rows.length ? rowKey(rows[0], 0) : "");
+            setSelectedNode(rows.length ? rows[0].s || rows[0].o || "" : "");
+            await refreshLogs(session);
+            await refreshMetrics();
+            setStatus({ tone: "ok", text: dataset.label + " dataset loaded into RDF memory. Run the selected query to refresh from the triplestore." });
+          } catch (error) {
+            setStatus({ tone: "error", text: error.message });
+          } finally {
+            setBusy(false);
+          }
+        }
+
+        async function ingestRepo(event) {
+          if (event) event.preventDefault();
+          setBusy(true);
+          setIngestBusy(true);
+          setIngestStage("auth");
+          setStatus({ tone: "", text: "Building repository exploit-memory graph..." });
+          setGraphStatus("Ingest pipeline started: authenticate, clone/open repository, extract code evidence, write RDF triples, render graph.");
+          const started = performance.now();
+          try {
+            const session = await ensureToken();
+            setBusy(true);
+            setIngestStage("clone");
+            const params = new URLSearchParams();
+            params.set("target", normalizeRepoTarget(repoTarget.trim(), repoMode));
+            params.set("objective", repoObjective.trim());
+            params.set("mode", repoMode);
+            setStatus({ tone: "", text: "Cloning/opening repository and writing exploit-memory triples into RDF storage..." });
+            const response = await fetch("/avr/repo/ingest?" + params.toString(), {
+              method: "POST",
+              headers: { "X-Omrya-Token": session },
+            });
+            const body = await response.text();
+            if (!response.ok) throw new Error(body.trim() || response.statusText);
+            setIngestStage("graph");
+            const parsed = JSON.parse(body);
+            const rows = Array.isArray(parsed.rows) ? parsed.rows : [];
+            setGraphRows(rows);
+            setResult({ columns: parsed.columns || ["s", "p", "o", "g"], rows, raw: body });
+            setSelectedRowKey(rows.length ? rowKey(rows[0], 0) : "");
+            setSelectedNode(rows.length ? rows[0].s || rows[0].o || "" : "");
+            setQuery("SELECT * WHERE { ?s ?p ?o }");
+            setGraphStatus("Repository exploit-memory graph built from " + rows.length + " code evidence triples.");
+            const elapsed = Math.round(performance.now() - started);
+            setStatus({ tone: "ok", text: "Repository graph loaded into OMRYA in " + elapsed + " ms." });
+            await refreshLogs(session);
+            await refreshMetrics();
+          } catch (error) {
+            setStatus({ tone: "error", text: error.message });
+            setGraphStatus("Repository ingest failed before the RDF graph could be populated.");
+          } finally {
+            setIngestStage("");
+            setIngestBusy(false);
+            setBusy(false);
+          }
+        }
+
+        function clearSession() {
+          localStorage.removeItem("omrya.session");
+          setToken("");
+          setStatus({ tone: "", text: "Session cleared." });
+        }
+
+        const metricsMap = useMemo(() => parseMetrics(metrics), [metrics]);
+
+        return h("div", { className: "shell" },
+          h(Topbar, {
+            user,
+            token,
+            busy,
+            ingestBusy,
+            ingestStage,
+            repoTarget,
+            setRepoTarget,
+            repoMode,
+            setRepoMode,
+            ingestRepo,
+          }),
+          h("main", { className: "main" },
+            h(LeftSidebar, { metricsMap, graphRows, logs }),
+            h("section", { className: "workspace" },
+              h(GraphWorkspace, {
+                rows: graphRows,
+                status: graphStatus,
+                datasets,
+                busy,
+                loadDataset,
+                selectedRowKey,
+                hoveredRowKey,
+                selectedNode,
+                setSelectedRowKey,
+                setHoveredRowKey,
+                setSelectedNode,
+              }),
+              h("section", { className: "bottom" },
+                h(EditorPanel, {
+                  query,
+                  setQuery,
+                  auths,
+                  setAuths,
+                  visibility,
+                  setVisibility,
+                  resultFormat,
+                  setResultFormat,
+                  busy,
+                  token,
+                  runQuery,
+                  signIn,
+                  user,
+                  setUser,
+                  password,
+                  setPassword,
+                  clearSession,
+                  status,
+                  loadDataset,
+                  datasets,
+                }),
+                h(ResultsPanel, {
+                  result,
+                  busy,
+                  selectedRowKey,
+                  hoveredRowKey,
+                  setSelectedRowKey,
+                  setHoveredRowKey,
+                  setSelectedNode,
+                })
+              )
+            ),
+            h(DetailsSidebar, { token, logs, metricsMap, graphRows, selectedNode, setQuery })
+          ),
+          h("footer", { className: "footer" },
+            h("div", { className: "footer-left" }, h("span", { className: "pulse" }), "OMRYA 1.0.0", h("span", { className: "pulse" }), "LOCAL-FIRST", h("span", { className: "pulse" }), "RDF+"),
+            h("div", null, "DATA AS OF " + (logs[0] ? "LATEST INGEST" : "PREVIEW")),
+            h("div", null, graphRows.length + " TRIPLES")
+          )
+        );
+      }
+
+      function Topbar(props) {
+        return h("header", { className: "topbar" },
+          h("div", { className: "brand" },
+            h("div", { className: "seal" }, "O"),
+            h("div", null,
+              h("div", { className: "brand-title" }, "OMRYA"),
+              h("div", { className: "brand-subtitle" }, "Code Intelligence Database / IDE")
+            )
+          ),
+          h("div", { className: "top-center" },
+            h("nav", { className: "nav" },
+              ["Overview", "Graph", "Search", "Explore", "Ingest", "Schemas", "Settings"].map((label, index) =>
+                h("button", { className: "nav-item" + (index === 0 ? " active" : ""), type: "button" },
+                  h("span", { className: "nav-icon" }, ["⌂", "◇", "⌕", "◎", "⇩", "▤", "⚙"][index]),
+                  label
+                )
+              )
+            ),
+            h("form", { className: "repo-ingest-bar", onSubmit: props.ingestRepo },
+              h("input", {
+                className: "input",
+                value: props.repoTarget,
+                placeholder: "repo target: org/project, github URL, or local path",
+                onInput: (event) => props.setRepoTarget(event.currentTarget.value),
+              }),
+              h("select", {
+                className: "select",
+                value: props.repoMode,
+                onChange: (event) => props.setRepoMode(event.currentTarget.value),
+              },
+                h("option", { value: "clone" }, "GitHub"),
+                h("option", { value: "local" }, "Local Path")
+              ),
+              h("button", {
+                className: "button primary ingest-button",
+                disabled: props.busy || props.ingestBusy || !props.repoTarget.trim(),
+              },
+                props.ingestBusy ? h("span", { className: "spinner" }) : null,
+                props.ingestBusy ? "Ingesting" : "Ingest"
+              ),
+              props.ingestBusy ? h("div", { className: "ingest-progress" },
+                h("div", { className: "ingest-track" }),
+                h("div", { className: "ingest-steps" },
+                  ["auth", "clone", "rdf", "graph"].map((stage) =>
+                    h("span", { className: props.ingestStage === stage ? "active" : "" },
+                      stage === "auth" ? "Auth" :
+                      stage === "clone" ? "Clone + Analyze" :
+                      stage === "rdf" ? "RDF Write" : "Graph"
+                    )
+                  )
+                )
+              ) : null
+            )
+          ),
+          h("div", { className: "clearance" },
+            h("div", { className: "top-status" },
+              h("div", null, h("span", { className: "status-dot" }), "LOCAL-FIRST MODE"),
+              h("div", null, "DB PATH ", h("strong", null, "./omrya.db")),
+              h("div", null, "SYNC ", h("strong", null, props.token ? "Active" : "Never"))
+            ),
+            h("div", { className: "toolbar-icons" },
+              h("button", { className: "icon-btn", type: "button", title: "Console" }, "▹"),
+              h("button", { className: "icon-btn", type: "button", title: "Alerts" }, "!"),
+              h("button", { className: "icon-btn", type: "button", title: "Help" }, "?"),
+              h("button", { className: "icon-btn", type: "button", title: "Menu" }, "≡")
+            )
+          )
+        );
+      }
+
+      function LeftSidebar(props) {
+        const requests = props.metricsMap.omrya_requests_total || "0";
+        const queries = props.metricsMap.omrya_sparql_queries_total || "0";
+        const summary = summarizeRows(props.graphRows);
+        const latest = props.logs && props.logs.length ? formatActivityLine(props.logs[0]) : "preview data";
+        return h("aside", { className: "sidebar" },
+          h("section", { className: "panel" },
+            h("div", { className: "panel-header" }, "Database Status"),
+            h("div", { className: "panel-body kv" },
+              kv("STATUS", h("span", { className: "healthy" }, "Ready")),
+              kv("ENGINE", "OMRYA 1.0.0"),
+              kv("STORE", "omrya-kv + RDF"),
+              kv("TRIPLES", summary.edgeCount),
+              kv("ENTITIES", summary.entityCount),
+              kv("FILES", summary.files),
+              kv("LAST INGEST", latest),
+              kv("REQUESTS", requests),
+              h("button", { className: "button block", type: "button" }, "View Metrics")
+            )
+          ),
+          h("section", { className: "panel" },
+            h("div", { className: "panel-header" }, "Ingest Pipeline"),
+            h("div", { className: "panel-body pipeline" },
+              pipelineRow("File Watcher", "Active"),
+              pipelineRow("Parser Workers", "4 / 4"),
+              pipelineRow("RDF Mapper", "Active"),
+              pipelineRow("Triple Store", "Ready"),
+              pipelineRow("Index Builder", "Active"),
+              h("button", { className: "button block", type: "button" }, "Ingest Settings")
+            )
+          ),
+          h("section", { className: "panel" },
+            h("div", { className: "panel-header" }, "Recent Ingests"),
+            h("div", { className: "panel-body" },
+              h("div", { className: "recent-list" },
+                (props.logs && props.logs.length ? props.logs.slice(0, 4) : [
+                  "commit preview-auth +2,194 files +311,842 triples",
+                  "commit preview-core +1,102 files +156,201 triples",
+                  "branch feature/auth +842 files +91,772 triples",
+                ]).map((line, index) =>
+                  h("div", { className: "recent-item", title: line },
+                    h("div", { className: "recent-bar" }),
+                    h("div", null,
+                      h("div", { className: "tree-name" }, formatActivityLine(line)),
+                      h("div", { className: "recent-meta" }, index === 0 ? "latest" : "history")
+                    )
+                  )
+                )
+              ),
+              h("button", { className: "button block", type: "button" }, "View All Ingests"),
+              h("div", { className: "sidebar-mini" },
+                h("span", null, "SPARQL " + queries),
+                h("span", null, "SESSIONS " + (props.metricsMap.omrya_sessions || "0"))
+              )
+            )
+          )
+        );
+      }
+
+      function graphRow(name, locked) {
+        return h("div", { className: "tree-row" },
+          h("span", { className: "tree-name" }, h("span", { className: "folder" }, "> "), name),
+          h("span", { className: "lock" }, locked ? "#" : "")
+        );
+      }
+
+      function kv(key, value) {
+        return h("div", { className: "kv-row" }, h("span", null, key), h("span", { className: "kv-value" }, value));
+      }
+
+      function pipelineRow(label, state) {
+        return h("div", { className: "pipeline-row" },
+          h("span", null, h("span", { className: "pipeline-dot" }), label),
+          h("span", { className: "healthy" }, state)
+        );
+      }
+
+      function GraphWorkspace(props) {
+        return h("section", { className: "graph-panel" },
+          h("div", { className: "graph-head" },
+            h("div", { className: "graph-title" }, "Knowledge Graph"),
+            h("div", { className: "graph-tools" },
+              h("button", {
+                className: "button primary",
+                disabled: props.busy || !props.datasets.length,
+                onClick: () => props.loadDataset(props.datasets[0]),
+              }, "Load Graph"),
+              h("select", { className: "select", value: "force" }, h("option", null, "Layout: Force Directed")),
+              h("select", { className: "select", value: "2" }, h("option", null, "Depth: 2")),
+              h("label", { className: "inferred" }, h("input", { type: "checkbox", checked: true, readOnly: true }), "Inferred"),
+              h("button", { className: "button" }, "Filters (2)")
+            )
+          ),
+          h("div", { className: "graph-stage" },
+            h(SigmaGraph, {
+              rows: props.rows,
+              status: props.status,
+              selectedRowKey: props.selectedRowKey,
+              hoveredRowKey: props.hoveredRowKey,
+              selectedNode: props.selectedNode,
+              setSelectedRowKey: props.setSelectedRowKey,
+              setHoveredRowKey: props.setHoveredRowKey,
+              setSelectedNode: props.setSelectedNode,
+            }),
+            h("div", { className: "legend" },
+              h("div", { className: "graph-title" }, "Result Types"),
+              ["Subject", "Object", "Literal", "Type"].map((name, index) =>
+                h("div", { className: "legend-row" },
+                  h("span", { className: "dot", style: { color: ["var(--blue)", "var(--green)", "var(--orange)", "var(--purple)"][index] } }),
+                  name
+                )
+              )
+            )
+          )
+        );
+      }
+
+      function SigmaGraph(props) {
+        const containerRef = useRef(null);
+        const rendererRef = useRef(null);
+        const graphRef = useRef(null);
+        const edgeRowsRef = useRef(new Map());
+        const rowNodesRef = useRef(new Map());
+        const [error, setError] = useState("");
+        const visualEntries = useMemo(() => graphRowsForVisualization(props.rows), [props.rows]);
+
+        useEffect(() => {
+          const container = containerRef.current;
+          if (!container) return;
+          if (rendererRef.current) {
+            rendererRef.current.kill();
+            rendererRef.current = null;
+          }
+          graphRef.current = null;
+          edgeRowsRef.current = new Map();
+          rowNodesRef.current = new Map();
+          container.innerHTML = "";
+
+          const Graph = window.graphology && (window.graphology.Graph || window.graphology);
+          const SigmaCtor = window.Sigma && (window.Sigma.default || window.Sigma);
+          if (!Graph || !SigmaCtor) {
+            setError("Sigma.js or Graphology did not load from cdnjs.");
+            return;
+          }
+
+          try {
+            const graph = new Graph({ multi: true, type: "directed" });
+            const entries = visualEntries;
+            const rows = entries.map((entry) => entry.row);
+            const radius = Math.max(4, Math.sqrt(Math.max(entries.length, 1)) * 1.8);
+            const values = Array.from(new Set(rows.flatMap((row) => [row.s, row.o]).filter(Boolean)));
+            const degree = new Map();
+            rows.forEach((row) => {
+              degree.set(row.s, (degree.get(row.s) || 0) + 1);
+              degree.set(row.o, (degree.get(row.o) || 0) + 1);
+            });
+            const edgePairs = [];
+            values.forEach((value, index) => {
+              const angle = (Math.PI * 2 * index) / Math.max(values.length, 1);
+              const isSubject = rows.some((row) => row.s === value);
+              const isLiteral = !looksLikeIri(value);
+              const nodeDegree = degree.get(value) || 1;
+              graph.addNode(value, {
+                label: shouldLabelGraphNode(value, nodeDegree, entries.length) ? compactLabel(value) : "",
+                x: Math.cos(angle) * radius,
+                y: Math.sin(angle) * radius,
+                size: Math.min(9, (isSubject ? 4.8 : 3.8) + Math.sqrt(nodeDegree) * 0.8),
+                color: isLiteral ? "#f28f3b" : isSubject ? "#38c8ff" : "#37e33f",
+              });
+            });
+            entries.forEach((entry) => {
+              const row = entry.row;
+              const index = entry.index;
+              if (!row.s || !row.o || !graph.hasNode(row.s) || !graph.hasNode(row.o)) return;
+              const key = rowKey(row, index);
+              const edgeKey = "edge:" + key;
+              rowNodesRef.current.set(key, [row.s, row.o]);
+              edgeRowsRef.current.set(edgeKey, key);
+              edgePairs.push({ source: row.s, target: row.o, key: edgeKey });
+              graph.addDirectedEdgeWithKey(edgeKey, row.s, row.o, {
+                label: "",
+                color: row.p && row.p.endsWith("#type") ? "#b05cff" : "#5d6e5a",
+                size: row.p && row.p.endsWith("#type") ? 1.4 : 0.8,
+                rowKey: key,
+              });
+            });
+            graphRef.current = graph;
+            const renderer = new SigmaCtor(graph, container, {
+              allowInvalidContainer: true,
+              labelColor: { color: "#dbe6d8" },
+              labelSize: 10,
+              labelRenderedSizeThreshold: 8,
+              renderEdgeLabels: false,
+              edgeLabelSize: 8,
+              defaultEdgeColor: "#5d6e5a",
+              defaultNodeColor: "#38c8ff",
+            });
+            rendererRef.current = renderer;
+
+            if (typeof renderer.on === "function") {
+              renderer.on("clickNode", ({ node }) => {
+                const match = entries.find((entry) => entry.row.s === node || entry.row.o === node);
+                props.setSelectedNode(node);
+                if (match) props.setSelectedRowKey(rowKey(match.row, match.index));
+              });
+              renderer.on("clickEdge", ({ edge }) => {
+                const key = edgeRowsRef.current.get(edge);
+                if (key) props.setSelectedRowKey(key);
+              });
+              renderer.on("enterNode", ({ node }) => {
+                const match = entries.find((entry) => entry.row.s === node || entry.row.o === node);
+                if (match) props.setHoveredRowKey(rowKey(match.row, match.index));
+              });
+              renderer.on("leaveNode", () => props.setHoveredRowKey(""));
+            }
+
+            const velocities = new Map(values.map((node) => [node, { x: 0, y: 0 }]));
+            const pinned = new Set();
+            let dragged = null;
+            if (typeof renderer.on === "function") {
+              renderer.on("downNode", (event) => {
+                dragged = event.node;
+                pinned.add(dragged);
+                if (event.event && typeof event.event.preventSigmaDefault === "function") event.event.preventSigmaDefault();
+                if (event.event && event.event.original) event.event.original.preventDefault();
+              });
+            }
+            const captor = typeof renderer.getMouseCaptor === "function" ? renderer.getMouseCaptor() : null;
+            if (captor && typeof captor.on === "function") {
+              captor.on("mousemovebody", (event) => {
+                if (!dragged || typeof renderer.viewportToGraph !== "function") return;
+                const point = renderer.viewportToGraph({ x: event.x, y: event.y });
+                graph.setNodeAttribute(dragged, "x", point.x);
+                graph.setNodeAttribute(dragged, "y", point.y);
+                const velocity = velocities.get(dragged);
+                if (velocity) {
+                  velocity.x = 0;
+                  velocity.y = 0;
+                }
+                renderer.refresh();
+              });
+              captor.on("mouseup", () => {
+                if (dragged) pinned.delete(dragged);
+                dragged = null;
+              });
+              captor.on("mouseupbody", () => {
+                if (dragged) pinned.delete(dragged);
+                dragged = null;
+              });
+            }
+
+            const timer = window.setInterval(() => {
+              if (!graphRef.current || !values.length) return;
+              const positions = new Map(values.map((node) => [node, graph.getNodeAttributes(node)]));
+              for (let i = 0; i < values.length; i++) {
+                for (let j = i + 1; j < values.length; j++) {
+                  const a = values[i];
+                  const b = values[j];
+                  const pa = positions.get(a);
+                  const pb = positions.get(b);
+                  const dx = (pa.x || 0) - (pb.x || 0);
+                  const dy = (pa.y || 0) - (pb.y || 0);
+                  const distanceSq = Math.max(0.08, dx * dx + dy * dy);
+                  const force = Math.min(0.22, 0.9 / distanceSq);
+                  const distance = Math.sqrt(distanceSq);
+                  const fx = (dx / distance) * force;
+                  const fy = (dy / distance) * force;
+                  velocities.get(a).x += fx;
+                  velocities.get(a).y += fy;
+                  velocities.get(b).x -= fx;
+                  velocities.get(b).y -= fy;
+                }
+              }
+              edgePairs.forEach((edge) => {
+                const source = positions.get(edge.source);
+                const target = positions.get(edge.target);
+                if (!source || !target) return;
+                const dx = (target.x || 0) - (source.x || 0);
+                const dy = (target.y || 0) - (source.y || 0);
+                const distance = Math.max(0.1, Math.sqrt(dx * dx + dy * dy));
+                const targetDistance = 2.4;
+                const force = (distance - targetDistance) * 0.008;
+                const fx = (dx / distance) * force;
+                const fy = (dy / distance) * force;
+                velocities.get(edge.source).x += fx;
+                velocities.get(edge.source).y += fy;
+                velocities.get(edge.target).x -= fx;
+                velocities.get(edge.target).y -= fy;
+              });
+              values.forEach((node) => {
+                if (pinned.has(node)) return;
+                const attrs = positions.get(node);
+                const velocity = velocities.get(node);
+                velocity.x += -(attrs.x || 0) * 0.002;
+                velocity.y += -(attrs.y || 0) * 0.002;
+                velocity.x *= 0.86;
+                velocity.y *= 0.86;
+                graph.setNodeAttribute(node, "x", (attrs.x || 0) + velocity.x);
+                graph.setNodeAttribute(node, "y", (attrs.y || 0) + velocity.y);
+              });
+              renderer.refresh();
+            }, 34);
+
+            applyGraphHighlight(graph, renderer, rowNodesRef.current, props.selectedRowKey, props.hoveredRowKey, props.selectedNode);
+            setError("");
+            return () => {
+              window.clearInterval(timer);
+              if (rendererRef.current) {
+                rendererRef.current.kill();
+                rendererRef.current = null;
+              }
+            };
+          } catch (error) {
+            setError(error.message);
+          }
+        }, [visualEntries]);
+
+        useEffect(() => {
+          if (!graphRef.current || !rendererRef.current) return;
+          applyGraphHighlight(graphRef.current, rendererRef.current, rowNodesRef.current, props.selectedRowKey, props.hoveredRowKey, props.selectedNode);
+        }, [props.selectedRowKey, props.hoveredRowKey, props.selectedNode]);
+
+        return h("div", { className: "sigma-stage" },
+          h("div", { className: "sigma-canvas", ref: containerRef }),
+            h("div", { className: "graph-overlay" },
+              h("div", { className: "graph-summary" }, visualEntries.length + " / " + props.rows.length + " triples visualized"),
+              h("div", { className: "graph-status" + (error ? " error" : "") },
+              error || props.status
+            )
+          )
+        );
+      }
+
+      function EditorPanel(props) {
+        return h("section", { className: "panel editor-panel" },
+          h("div", { className: "panel-header" },
+            h("span", null, "Search / Query"),
+            h("div", { className: "query-tabs" },
+              h("span", { className: "tab active" }, "SPARQL"),
+              h("span", { className: "tab" }, "Text"),
+              h("span", { className: "tab" }, "Hybrid")
+            )
+          ),
+          h("div", { className: "panel-body" },
+            h("form", { onSubmit: props.signIn },
+              h("div", { className: "search-row", style: { gridTemplateColumns: "1fr 1fr 82px 82px" } },
+                h("input", {
+                  className: "input",
+                  value: props.user,
+                  placeholder: "User",
+                  onInput: (event) => props.setUser(event.currentTarget.value),
+                }),
+                h("input", {
+                  className: "input",
+                  value: props.password,
+                  type: "password",
+                  placeholder: "Password",
+                  onInput: (event) => props.setPassword(event.currentTarget.value),
+                }),
+                h("button", { className: "button", disabled: props.busy }, "Sign In"),
+                h("button", { className: "button danger", type: "button", onClick: props.clearSession }, "Clear")
+              )
+            ),
+            h("div", { className: "dataset-grid" },
+              props.datasets.map((dataset) =>
+                h("button", {
+                  className: "button",
+                  type: "button",
+                  title: dataset.description,
+                  disabled: props.busy,
+                  onClick: () => props.loadDataset(dataset),
+                }, "Load " + dataset.label)
+              )
+            ),
+            h("div", { className: "search-row", style: { gridTemplateColumns: "1fr 1fr 112px" } },
+              h("input", {
+                className: "input",
+                value: props.auths,
+                placeholder: "query.auth e.g. A,B",
+                onInput: (event) => props.setAuths(event.currentTarget.value),
+              }),
+              h("input", {
+                className: "input",
+                value: props.visibility,
+                placeholder: "conf.cv e.g. A&B",
+                onInput: (event) => props.setVisibility(event.currentTarget.value),
+              }),
+              h("select", {
+                className: "select",
+                value: props.resultFormat,
+                onChange: (event) => props.setResultFormat(event.currentTarget.value),
+              },
+                h("option", { value: "json" }, "JSON"),
+                h("option", { value: "" }, "Count")
+              )
+            ),
+            h("div", { className: "samples" },
+              sampleQueries.map((sample) =>
+                h("button", {
+                  className: "chip",
+                  type: "button",
+                  onClick: () => props.setQuery(sample.text),
+                }, sample.label)
+              )
+            ),
+            h("textarea", {
+              className: "textarea",
+              spellCheck: false,
+              value: props.query,
+              onInput: (event) => props.setQuery(event.currentTarget.value),
+            }),
+            h("div", { className: "editor-actions" },
+              h("div", null,
+                h("button", { className: "button", type: "button", onClick: () => props.setQuery("") }, "Clear"),
+                " ",
+                h("button", { className: "button", type: "button", onClick: () => props.setQuery(formatSparql(props.query)) }, "Format"),
+                " ",
+                h("button", { className: "button", type: "button", onClick: () => navigator.clipboard && navigator.clipboard.writeText(props.query) }, "Copy")
+              ),
+              h("button", {
+                className: "button primary",
+                type: "button",
+                disabled: props.busy || !props.token || !props.query.trim(),
+                onClick: props.runQuery,
+              }, props.busy ? "Running" : "Run Query")
+            ),
+            h("div", { className: "status " + props.status.tone }, props.status.text)
+          )
+        );
+      }
+
+      function ResultsPanel(props) {
+        const rowHeight = 34;
+        const viewportHeight = 232;
+        const scrollRef = useRef(null);
+        const [scrollTop, setScrollTop] = useState(0);
+        const rows = props.result.rows;
+        const columns = props.result.columns.length ? props.result.columns : ["s", "p", "o", "g"];
+        const start = Math.max(0, Math.floor(scrollTop / rowHeight) - 4);
+        const visibleCount = Math.ceil(viewportHeight / rowHeight) + 8;
+        const visibleRows = rows.slice(start, start + visibleCount);
+        const gridColumns = columns.map((column) => column === "p" ? "minmax(150px, 0.9fr)" : "minmax(160px, 1fr)").join(" ");
+
+        useEffect(() => {
+          const index = rowIndexFromKey(props.selectedRowKey);
+          const scroll = scrollRef.current;
+          if (!scroll || index < 0 || index >= rows.length) return;
+          const top = index * rowHeight;
+          const bottom = top + rowHeight;
+          if (top < scroll.scrollTop || bottom > scroll.scrollTop + viewportHeight) {
+            scroll.scrollTop = Math.max(0, top - rowHeight * 2);
+          }
+        }, [props.selectedRowKey, rows.length]);
+
+        return h("section", { className: "panel results-panel" },
+          h("div", { className: "panel-header" },
+            "Query Results",
+            h("div", { className: "results-toolbar" },
+              h("span", null, "RESULTS (" + props.result.rows.length + ")"),
+              h("span", null, props.busy ? "ELAPSED: RUNNING" : "ELAPSED: IDLE")
+            )
+          ),
+          h("div", { className: "panel-body" },
+            h("div", { className: "table-wrap" },
+              props.result.rows.length
+                ? h("div", { className: "virtual-table", style: { minWidth: Math.max(680, columns.length * 180) + "px" } },
+                    h("div", { className: "virtual-head", style: { gridTemplateColumns: gridColumns } },
+                      columns.map((column) => h("div", { className: "virtual-cell" }, column))
+                    ),
+                    h("div", {
+                      className: "virtual-scroll",
+                      ref: scrollRef,
+                      onScroll: (event) => setScrollTop(event.currentTarget.scrollTop),
+                      onMouseLeave: () => props.setHoveredRowKey(""),
+                    },
+                      h("div", {
+                        className: "virtual-spacer",
+                        style: { height: rows.length * rowHeight + "px" },
+                      },
+                        visibleRows.map((row, offset) => {
+                          const index = start + offset;
+                          const key = rowKey(row, index);
+                          const active = key === props.selectedRowKey;
+                          const hovered = key === props.hoveredRowKey;
+                          return h("div", {
+                            key,
+                            className: "virtual-row" + (active ? " selected" : "") + (hovered ? " hovered" : ""),
+                            style: {
+                              gridTemplateColumns: gridColumns,
+                              height: rowHeight + "px",
+                              transform: "translateY(" + (index * rowHeight) + "px)",
+                            },
+                            onMouseEnter: () => props.setHoveredRowKey(key),
+                            onClick: () => {
+                              props.setSelectedRowKey(key);
+                              if (props.setSelectedNode) props.setSelectedNode(row.s || row.o || "");
+                            },
+                          },
+                            columns.map((column) => h("div", {
+                              className: "virtual-cell",
+                              title: row[column] || "",
+                            }, row[column] || ""))
+                          );
+                        })
+                      )
+                    )
+                  )
+                : h("pre", { className: "raw" }, props.result.raw || "No result set yet.")
+            )
+          )
+        );
+      }
+
+      function DetailsSidebar(props) {
+        const summary = summarizeRows(props.graphRows);
+        const node = props.selectedNode || "";
+        const nodeRows = node ? props.graphRows.filter((row) => row.s === node || row.o === node) : [];
+        const outgoing = nodeRows.filter((row) => row.s === node);
+        const incoming = nodeRows.filter((row) => row.o === node);
+        const nodeTypes = outgoing.filter((row) => row.p && row.p.endsWith("#type")).map((row) => compactLabel(row.o));
+        const displayNode = node || "avr:AgentRun";
+        const nodeExplanation = outgoing
+          .filter((row) => compactLabel(row.p) === "plainEnglish")
+          .map((row) => row.o)
+          .find(Boolean);
+        const evidence = props.graphRows
+          .filter((row) => /Hypothesis|Probe|Signal|Reproducer|Patch|Evidence|failureClass|observedSignal|derivedReproducer|proposedPatch|supportedByEvidence/.test(row.s + " " + row.p + " " + row.o))
+          .slice(0, 8);
+        const connected = Array.from(new Set(nodeRows.flatMap((row) => [row.s, row.o]).filter((value) => value && value !== node))).slice(0, 8);
+        return h("aside", { className: "details" },
+          h("section", { className: "panel" },
+            h("div", { className: "panel-header" }, h("span", null, "Entity Details"), h("span", null, "x")),
+            h("div", { className: "details-card" },
+              h("div", { className: "entity-head" },
+                h("div", { className: "avatar" }, compactLabel(displayNode).slice(0, 1).toUpperCase() || "A"),
+                h("div", null,
+                  h("div", { className: "entity-name", title: node }, compactLabel(displayNode)),
+                  h("div", { className: "entity-sub" }, node ? (nodeTypes.join(", ") || "RDF resource") : "repo/code graph overview")
+                )
+              ),
+              h("div", { className: "detail-tabs" },
+                ["Overview", "Properties", "Relations (" + nodeRows.length + ")", "Triples", "Notes"].map((label, index) =>
+                  h("span", { className: "tab" + (index === 0 ? " active" : "") }, label)
+                )
+              ),
+              h("table", { className: "properties" },
+                h("tbody", null,
+                  node
+                    ? [
+                        detail("TYPE", "Resource"),
+                        detail("LANGUAGE", nodeTypes.join(", ") || "RDF"),
+                        detail("OUTGOING", outgoing.length),
+                        detail("INCOMING", incoming.length),
+                        detail("SESSION", props.token ? "Authenticated" : "Unsigned"),
+                      ]
+                    : [
+                        detail("HYPOTHESES", summary.hypotheses),
+                        detail("PROBES", summary.probes),
+                        detail("SIGNALS", summary.signals),
+                        detail("REPRODUCERS", summary.reproducers),
+                        detail("PATCHES", summary.patches),
+                        detail("SESSION", props.token ? "Authenticated" : "Unsigned"),
+                        detail("LAST UPDATED", new Date().toISOString()),
+                      ]
+                )
+              )
+            ),
+            node ? h("div", { className: "panel-body" },
+              h("div", { className: "explain" },
+                nodeExplanation || explainSelectedNode(node, nodeTypes, outgoing.length, incoming.length)
+              )
+            ) : null
+          ),
+          node ? h("section", { className: "panel" },
+            h("div", { className: "panel-header" }, "Outgoing Relations"),
+            h("div", { className: "panel-body" },
+              outgoing.length
+                ? h("div", { className: "relation-list" }, outgoing.slice(0, 8).map((row) =>
+                    h("div", { className: "relation-row" },
+                      h("span", null, compactLabel(row.p)),
+                      h("strong", null, compactLabel(row.o))
+                    )
+                  ))
+                : h("div", { className: "status" }, "No outgoing relations in the current result set."),
+              h("div", { className: "samples relation-actions" },
+                nodeQueryTemplates(node).map((template) =>
+                  h("button", {
+                    className: "chip",
+                    type: "button",
+                    onClick: () => props.setQuery(template.query),
+                    title: template.query,
+                  }, template.label)
+                )
+              )
+            )
+          ) : null,
+          node ? h("section", { className: "panel" },
+            h("div", { className: "panel-header" }, "Connected Entities"),
+            h("div", { className: "panel-body" },
+              connected.length
+                ? h("div", { className: "connected-chips" }, connected.map((value) =>
+                    h("button", { className: "chip", type: "button", onClick: () => props.setQuery("SELECT * WHERE { { " + ntTerm(value) + " ?p ?o } UNION { ?s ?p " + ntTerm(value) + " } }") }, compactLabel(value))
+                  ))
+                : h("div", { className: "status" }, "No connected entities in the current result set.")
+            )
+          ) : null,
+          h("section", { className: "panel" },
+            h("div", { className: "panel-header" }, "Schema Overview"),
+            h("div", { className: "panel-body" },
+              h("div", { className: "detail-tabs schema-tabs" },
+                h("span", { className: "tab active" }, "Ontologies"),
+                h("span", { className: "tab" }, "SHACL Shapes")
+              ),
+              h("div", { className: "kv schema-kv" },
+                kv("om (core)", summary.entityCount + " classes"),
+                kv("code", summary.files + " files"),
+                kv("sec", summary.patches + " findings"),
+                kv("rdf", summary.edgeCount + " triples")
+              ),
+              h("button", { className: "button block", type: "button" }, "View Full Schema")
+            )
+          ),
+          h("section", { className: "panel" },
+            h("div", { className: "panel-header" }, "Activity"),
+            h("div", { className: "panel-body" },
+              props.logs.length
+                ? h("div", { className: "tree" }, props.logs.map((line) => h("div", { className: "tree-row", title: line }, h("span", { className: "tree-name" }, formatActivityLine(line)))))
+                : h("div", { className: "status" }, "No authenticated SRO activity loaded.")
+            )
+          )
+        );
+      }
+
+      function detail(key, value) {
+        return h("tr", null, h("th", null, key), h("td", null, value));
+      }
+
+      function explainSelectedNode(node, nodeTypes, outgoingCount, incomingCount) {
+        const typeText = nodeTypes.join(", ");
+        const label = compactLabel(node);
+        const kind = typeText || "RDF resource";
+        if (/CodeQueryProbe/.test(typeText)) {
+          return label + " is a generated analysis query/test idea. Outgoing facts describe what it checks; incoming facts show which hypothesis created it.";
+        }
+        if (/VulnerabilityHypothesis/.test(typeText)) {
+          return label + " is a possible issue. Follow outgoing facts to probes and evidence before treating it as real.";
+        }
+        if (/Evidence/.test(typeText)) {
+          return label + " is supporting evidence such as a path, line, or snippet from the analyzed repo.";
+        }
+        return label + " is a " + kind + " with " + outgoingCount + " outgoing and " + incomingCount + " incoming graph facts.";
+      }
+
+      function formatActivityLine(line) {
+        const match = String(line).match(/^(\d{10})\s+(.*)$/);
+        if (!match) return line;
+        const date = new Date(Number(match[1]) * 1000);
+        if (Number.isNaN(date.getTime())) return line;
+        return date.toLocaleString() + " - " + match[2];
+      }
+
+      function parseSparqlResult(text) {
+        const raw = text.trim();
+        if (!raw) return { rows: [], columns: [], raw: "Update completed without a result body." };
+        if (raw.startsWith("{")) {
+          try {
+            const parsed = JSON.parse(raw);
+            const rows = Array.isArray(parsed.rows) ? parsed.rows : [];
+            const columns = Array.isArray(parsed.columns) && parsed.columns.length
+              ? parsed.columns
+              : ["s", "p", "o", "g"];
+            return { rows, columns, raw };
+          } catch (_) {
+          }
+        }
+        try {
+          const doc = new DOMParser().parseFromString(raw, "application/xml");
+          if (doc.querySelector("parsererror")) throw new Error("not xml");
+          const columns = Array.from(doc.querySelectorAll("head variable"))
+            .map((node) => node.getAttribute("name"))
+            .filter(Boolean);
+          const rows = Array.from(doc.querySelectorAll("results result")).map((result) => {
+            const row = {};
+            result.querySelectorAll("binding").forEach((binding) => {
+              const name = binding.getAttribute("name");
+              const valueNode = binding.querySelector("literal, uri, bnode");
+              row[name] = valueNode ? valueNode.textContent : "";
+            });
+            return row;
+          });
+          if (columns.length && rows.length) return { rows, columns, raw };
+        } catch (_) {
+        }
+        return { rows: [], columns: [], raw };
+      }
+
+      function formatSparql(text) {
+        return String(text || "")
+          .replace(/\s+/g, " ")
+          .replace(/\s*{\s*/g, " {\n  ")
+          .replace(/\s*\.\s*/g, " .\n  ")
+          .replace(/\s*}\s*/g, "\n}")
+          .replace(/\b(WHERE|ORDER BY|LIMIT|FILTER|SELECT|PREFIX)\b/g, "\n$1")
+          .replace(/^\s+/, "")
+          .replace(/\n{3,}/g, "\n\n")
+          .trim();
+      }
+
+      function rowsFromTriples(triples) {
+        return triples.map((triple) => ({
+          s: triple[0],
+          p: triple[1],
+          o: triple[2],
+          g: "urn:graph:prefilled",
+        }));
+      }
+
+      function rowKey(row, index) {
+        return [index, row.s || "", row.p || "", row.o || "", row.g || ""].join("\u001f");
+      }
+
+      function rowIndexFromKey(key) {
+        if (!key) return -1;
+        const value = Number(String(key).split("\u001f", 1)[0]);
+        return Number.isFinite(value) ? value : -1;
+      }
+
+      function nodeQueryTemplates(node) {
+        const term = ntTerm(node);
+        return [
+          {
+            label: "Neighborhood",
+            query: "SELECT * WHERE { { " + term + " ?p ?o } UNION { ?s ?p " + term + " } }",
+          },
+          {
+            label: "Outgoing",
+            query: "SELECT * WHERE { " + term + " ?p ?o }",
+          },
+          {
+            label: "Incoming",
+            query: "SELECT * WHERE { ?s ?p " + term + " }",
+          },
+          {
+            label: "Types",
+            query: "SELECT * WHERE { " + term + " <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?o }",
+          },
+          {
+            label: "Evidence",
+            query: "SELECT * WHERE { { " + term + " <http://omrya.local/avr/supportedByEvidence> ?o } UNION { ?s <http://omrya.local/avr/supportedByEvidence> " + term + " } }",
+          },
+        ];
+      }
+
+      function graphRowsForVisualization(rows) {
+        const maxEdges = 96;
+        const entries = rows.map((row, index) => ({
+          row,
+          index,
+          score: graphRowScore(row),
+        }));
+        if (entries.length <= 90) return entries;
+
+        const selected = entries
+          .filter((entry) => entry.score > 0)
+          .sort((a, b) => b.score - a.score || a.index - b.index)
+          .slice(0, maxEdges);
+
+        if (selected.length >= Math.min(40, entries.length)) {
+          return selected.sort((a, b) => a.index - b.index);
+        }
+
+        return entries
+          .sort((a, b) => b.score - a.score || a.index - b.index)
+          .slice(0, Math.min(maxEdges, entries.length))
+          .sort((a, b) => a.index - b.index);
+      }
+
+      function graphRowScore(row) {
+        const predicate = compactLabel(row.p || "");
+        const joined = [row.s, row.p, row.o].join(" ");
+        if (isNoisyGraphPredicate(predicate)) return -20;
+        if (!looksLikeIri(row.o) && rowsNeedThinningContext(joined)) return -10;
+        if (/hasHypothesis|generatedProbe|targetsComponent|supportedByEvidence|mutatedBy|failureClass|observedSignal|triggered|minimizedTo|derivedFrom|replaysAs|belongsToCluster|proposedPatch|analyzesRepository|usesComponent|hasComponent/.test(predicate)) return 100;
+        if (/VulnerabilityHypothesis|CodeQueryProbe|Evidence|Repository|SourceFile|Campaign|AgentRun|MemoryGraph/.test(joined)) return 75;
+        if (/containsFile/.test(predicate)) return 18;
+        if (looksLikeIri(row.s) && looksLikeIri(row.o)) return 35;
+        return 5;
+      }
+
+      function rowsNeedThinningContext(value) {
+        return /repo-|VulnerabilityHypothesis|CodeQueryProbe|Evidence|Repository|SourceFile|Campaign|code\//.test(value);
+      }
+
+      function isNoisyGraphPredicate(predicate) {
+        return /^(snippet|line|lineCount|language|path|sourceTarget|indexedFileCount|objective|authorizedScope|queryIntent|plainEnglish)$/.test(predicate);
+      }
+
+      function shouldLabelGraphNode(value, degree, edgeCount) {
+        if (!looksLikeIri(value)) return false;
+        if (edgeCount <= 60) return true;
+        if (degree >= 4) return true;
+        return /campaign|repo\/|hypothesis|probe|signature|cluster|component|runtime|memory\/kg/.test(value);
+      }
+
+      function normalizeRepoTarget(value, mode) {
+        const trimmed = value.trim();
+        if (mode === "local" || /^https?:\/\//i.test(trimmed) || trimmed.startsWith("/")) return trimmed;
+        const cleaned = trimmed.replace(/^github\.com\//i, "").replace(/\.git$/i, "");
+        if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(cleaned)) {
+          return "https://github.com/" + cleaned + ".git";
+        }
+        return trimmed;
+      }
+
+      function applyGraphHighlight(graph, renderer, rowNodes, selectedRowKey, hoveredRowKey, selectedNode) {
+        const activeKey = hoveredRowKey || selectedRowKey;
+        const selectedNodes = new Set(rowNodes.get(selectedRowKey) || []);
+        const activeNodes = new Set(rowNodes.get(activeKey) || []);
+        graph.forEachNode((node, attrs) => {
+          const active = activeNodes.has(node) || node === selectedNode;
+          const selected = selectedNodes.has(node) || node === selectedNode;
+          const baseSize = attrs.baseSize || attrs.size || 9;
+          if (!attrs.baseSize) graph.setNodeAttribute(node, "baseSize", baseSize);
+          graph.setNodeAttribute(node, "highlighted", active || selected);
+          graph.setNodeAttribute(node, "size", active ? baseSize + 4 : selected ? baseSize + 3 : baseSize);
+          graph.setNodeAttribute(node, "color", active ? "#ffffff" : selected ? "#9aff8d" : attrs.baseColor || attrs.color);
+          if (!attrs.baseColor) graph.setNodeAttribute(node, "baseColor", attrs.color);
+        });
+        graph.forEachEdge((edge, attrs) => {
+          const key = attrs.rowKey;
+          const active = key && key === activeKey;
+          const selected = key && key === selectedRowKey;
+          const baseSize = attrs.baseSize || attrs.size || 1.5;
+          if (!attrs.baseSize) graph.setEdgeAttribute(edge, "baseSize", baseSize);
+          if (!attrs.baseColor) graph.setEdgeAttribute(edge, "baseColor", attrs.color);
+          graph.setEdgeAttribute(edge, "size", active ? 4 : selected ? 3 : baseSize);
+          graph.setEdgeAttribute(edge, "color", active ? "#ffffff" : selected ? "#37e33f" : attrs.baseColor || attrs.color);
+        });
+        renderer.refresh();
+      }
+
+      function summarizeRows(rows) {
+        const text = rows.map((row) => [row.s, row.p, row.o].join(" ")).join(" ");
+        const entities = new Set();
+        let files = 0;
+        rows.forEach((row) => {
+          if (row.s) entities.add(row.s);
+          if (row.o && looksLikeIri(row.o)) entities.add(row.o);
+          if (/SourceFile|definedIn|containsFile|\.rs|\.ts|\.js|\.toml|package\.json/.test([row.s, row.p, row.o].join(" "))) files += 1;
+        });
+        return {
+          edgeCount: rows.length,
+          entityCount: entities.size,
+          files,
+          hypotheses: countMatches(text, /Hypothesis|hasHypothesis|hypothesis\//g),
+          probes: countMatches(text, /Probe|generatedProbe|probe\//g),
+          signals: countMatches(text, /Signal|observedSignal|signal\//g),
+          reproducers: countMatches(text, /Reproducer|derivedReproducer|reproducer\//g),
+          patches: countMatches(text, /Patch|proposedPatch|patch\//g),
+          replayable: countMatches(text, /Evidence|supportedByEvidence|reproducer\//g),
+        };
+      }
+
+      function countMatches(text, pattern) {
+        return (text.match(pattern) || []).length;
+      }
+
+      function ntTerm(value) {
+        return looksLikeIri(value) ? "<" + value + ">" : '"' + value.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+      }
+
+      function looksLikeIri(value) {
+        return /^https?:\/\//.test(value) || /^urn:/.test(value);
+      }
+
+      function compactLabel(value) {
+        if (!value) return "";
+        const hash = value.lastIndexOf("#");
+        const slash = value.lastIndexOf("/");
+        const index = Math.max(hash, slash);
+        return index >= 0 ? value.slice(index + 1) : value;
+      }
+
+      function parseMetrics(text) {
+        return text.split("\n").reduce((map, line) => {
+          const parts = line.trim().split(/\s+/);
+          if (parts.length >= 2) map[parts[0]] = parts.slice(1).join(" ");
+          return map;
+        }, {});
+      }
+
+      render(h(App), document.getElementById("app"));
+    </script>
+  </body>
+</html>

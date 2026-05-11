@@ -908,5 +908,5 @@ pub fn hash_code<T: Hash>(value: &T) -> u64 {
 }
 
 #[cfg(test)]
-#[path = "tests/instance_tests.rs"]
+#[path = "../tests/instance_tests.rs"]
 mod tests;

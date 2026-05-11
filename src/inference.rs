@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::domain::{RyaIri, RyaStatement, RyaType, XSD_ANY_URI};
-use crate::query::{InMemoryRyaDao, QueryOptions, StatementPattern};
+use crate::sparql::query::{InMemoryRyaDao, QueryOptions, StatementPattern};
 
 pub const RDF_NAMESPACE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
 pub const RDFS_NAMESPACE: &str = "http://www.w3.org/2000/01/rdf-schema#";

@@ -318,5 +318,5 @@ fn pattern_key(pattern: &AlgebraStatementPattern) -> String {
 }
 
 #[cfg(test)]
-#[path = "tests/evaluation_tests.rs"]
+#[path = "../tests/evaluation_tests.rs"]
 mod tests;

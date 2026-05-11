@@ -2,13 +2,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 use crate::domain::{RyaIri, RyaStatement};
-use crate::fjall::{
-    CONF_TBL_PREFIX, FjallConnector, FjallIndexer, FjallRdfConfiguration, MultiTableBatchWriter,
-};
-use crate::fluo_pcj::InMemoryFluoPcjApp;
+use crate::pcj::fluo::InMemoryFluoPcjApp;
 use crate::pcj::{
     InMemoryPcjTables, PcjCardinalityUpdateStrategy, PcjMetadata, VariableOrder,
     VisibilityBindingSet, make_pcj_table_name, pcj_id_from_table_name,
+};
+use crate::storage::fjall::{
+    CONF_TBL_PREFIX, FjallConnector, FjallIndexer, FjallRdfConfiguration, MultiTableBatchWriter,
 };
 
 pub const PCJ_STORAGE_TYPE: &str = "rya.indexing.pcj.storageType";
@@ -558,7 +558,10 @@ impl FluoPcjUpdaterSupplier {
 
         let fluo_config = FluoPcjUpdaterConfig::new(config);
         required(fluo_config.fluo_app_name(), FLUO_APP_NAME)?;
-        required(fluo_config.fluo_coordinators().as_deref(), FJALL_COORDINATORS)?;
+        required(
+            fluo_config.fluo_coordinators().as_deref(),
+            FJALL_COORDINATORS,
+        )?;
         required(fluo_config.fjall_coordinators(), FJALL_COORDINATORS)?;
         required(fluo_config.fjall_instance(), FJALL_INSTANCE)?;
         required(fluo_config.fjall_username(), FJALL_USERNAME)?;
@@ -825,5 +828,5 @@ fn required<'a>(value: Option<&'a str>, key: &str) -> Result<&'a str, String> {
 }
 
 #[cfg(test)]
-#[path = "tests/pcj_indexing_tests.rs"]
+#[path = "../tests/pcj_indexing_tests.rs"]
 mod tests;

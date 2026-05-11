@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 
-use crate::indexing::USE_PCJ;
+use crate::indexes::USE_PCJ;
+use crate::pcj::indexing::PCJ_STORAGE_TYPE;
 use crate::pcj::{InMemoryPcjTables, VariableOrder};
-use crate::pcj_indexing::PCJ_STORAGE_TYPE;
-use crate::store::{
+use crate::storage::store::{
     CONF_FJALL_PASSWORD, CONF_FJALL_USER, CONF_INFER, CONF_TABLE_PREFIX, RyaStoreFactory,
 };
 
@@ -136,5 +136,5 @@ pub fn direct_example_parent_conf(infer: bool) -> BTreeMap<String, String> {
 }
 
 #[cfg(test)]
-#[path = "tests/direct_example_tests.rs"]
+#[path = "../tests/direct_example_tests.rs"]
 mod tests;

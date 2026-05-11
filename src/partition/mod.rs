@@ -995,5 +995,5 @@ pub fn retrieve_embed_key(key: &str) -> &str {
 }
 
 #[cfg(test)]
-#[path = "tests/partition_tests.rs"]
+#[path = "../tests/partition_tests.rs"]
 mod tests;

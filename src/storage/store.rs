@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
 
 use crate::domain::{RyaIri, RyaStatement};
-use crate::fjall::{CONF_TBL_PREFIX, FjallRdfConfiguration, FjallRyaDao};
 use crate::inference::InferenceEngine;
-use crate::instance::{RyaDetailsRepository, RyaDetailsToConfiguration};
-use crate::query::InMemoryRyaDao;
+use crate::sparql::query::InMemoryRyaDao;
+use crate::storage::fjall::{CONF_TBL_PREFIX, FjallRdfConfiguration, FjallRyaDao};
+use crate::storage::instance::{RyaDetailsRepository, RyaDetailsToConfiguration};
 
-pub const LEGACY_FJALL_STORE_CONFIG_NAMESPACE: &str =
-    "http://omrya.local/config/store/fjall#";
+pub const LEGACY_FJALL_STORE_CONFIG_NAMESPACE: &str = "http://omrya.local/config/store/fjall#";
 pub const FJALL_SERVER: &str = "http://omrya.local/config/store/fjall#server";
 pub const FJALL_PORT: &str = "http://omrya.local/config/store/fjall#port";
 pub const FJALL_INSTANCE: &str = "http://omrya.local/config/store/fjall#instance";
@@ -18,13 +17,13 @@ pub const RYA_FJALL_STORE_TYPE: &str = "rya:FjallStore";
 pub const RYA_FJALL_USER: &str = "http://omrya.local/RyaFjallStore/Config#user";
 pub const RYA_FJALL_PASSWORD: &str = "http://omrya.local/RyaFjallStore/Config#password";
 pub const RYA_FJALL_INSTANCE: &str = "http://omrya.local/RyaFjallStore/Config#instance";
-pub const RYA_FJALL_COORDINATORS: &str = "http://omrya.local/RyaFjallStore/Config#coordinators";
 pub const RYA_FJALL_IS_MOCK: &str = "http://omrya.local/RyaFjallStore/Config#isMock";
-pub const RYA_FJALL_STORE_FACTORY_SERVICE: &str = "omrya::store::FjallStoreFactory";
-pub const RYA_STORE_FACTORY_CLASS: &str = "omrya::store::RyaStoreFactory";
+pub const RYA_FJALL_STORE_FACTORY_SERVICE: &str = "omrya::storage::store::FjallStoreFactory";
+pub const RYA_STORE_FACTORY_CLASS: &str = "omrya::storage::store::RyaStoreFactory";
 pub const REMOVED_LEGACY_STORE_TYPE: &str = "removed:cloud-triple-store";
-pub const RYA_FJALL_STORE_TEMPLATE_PATH: &str = "RyaFjallStore.jsonld";
-pub const RYA_FJALL_STORE_SERVICE_PATH: &str = "src/store.rs::RYA_FJALL_STORE_FACTORY_SERVICE";
+pub const RYA_FJALL_STORE_TEMPLATE_PATH: &str = "data/RyaFjallStore.jsonld";
+pub const RYA_FJALL_STORE_SERVICE_PATH: &str =
+    "src/storage/store.rs::RYA_FJALL_STORE_FACTORY_SERVICE";
 pub const CONF_TABLE_PREFIX: &str = "rya.tableprefix";
 pub const CONF_INFER: &str = "query.infer";
 pub const CONF_FJALL_USER: &str = "sc.fjall.username";
@@ -42,7 +41,6 @@ pub const RYA_FJALL_STORE_TEMPLATE: &str = r#"{
   "rac:user": "{%Rya Fjall user|root%}",
   "rac:password": "{%Rya Fjall password|root%}",
   "rac:instance": "{%Rya Fjall instance|dev%}",
-  "rac:coordinators": "{%Rya Fjall coordinators|zoo1,zoo2,zoo3%}",
   "rac:isMock": "{%Rya Fjall is mock|false|true%}"
 }"#;
 
@@ -98,7 +96,6 @@ pub struct FjallStoreConfig {
     pub user: String,
     pub password: String,
     pub instance: String,
-    pub coordinators: String,
     pub is_mock: bool,
 }
 
@@ -108,7 +105,6 @@ impl Default for FjallStoreConfig {
             user: "root".to_string(),
             password: "root".to_string(),
             instance: "dev".to_string(),
-            coordinators: "zoo1,zoo2,zoo3".to_string(),
             is_mock: false,
         }
     }
@@ -128,7 +124,6 @@ impl FjallStoreConfig {
             (RYA_FJALL_USER.to_string(), self.user.clone()),
             (RYA_FJALL_PASSWORD.to_string(), self.password.clone()),
             (RYA_FJALL_INSTANCE.to_string(), self.instance.clone()),
-            (RYA_FJALL_COORDINATORS.to_string(), self.coordinators.clone()),
             (RYA_FJALL_IS_MOCK.to_string(), self.is_mock.to_string()),
         ])
     }
@@ -144,9 +139,6 @@ impl FjallStoreConfig {
         if let Some(instance) = values.get(RYA_FJALL_INSTANCE) {
             config.instance = instance.clone();
         }
-        if let Some(coordinators) = values.get(RYA_FJALL_COORDINATORS) {
-            config.coordinators = coordinators.clone();
-        }
         if let Some(is_mock) = values.get(RYA_FJALL_IS_MOCK) {
             config.is_mock = is_mock.eq_ignore_ascii_case("true");
         }
@@ -158,7 +150,6 @@ impl FjallStoreConfig {
 pub enum StoreBackend {
     Fjall {
         instance: String,
-        coordinators: String,
         user: String,
         is_mock: bool,
         table_prefix: Option<String>,
@@ -246,7 +237,6 @@ impl FjallStoreFactory {
         Ok(RyaStore {
             backend: StoreBackend::Fjall {
                 instance: config.instance.clone(),
-                coordinators: config.coordinators.clone(),
                 user: config.user.clone(),
                 is_mock: config.is_mock,
                 table_prefix: None,
@@ -310,7 +300,6 @@ impl RyaStoreFactory {
         let mut store = RyaStore {
             backend: StoreBackend::Fjall {
                 instance: fjall_config.instance,
-                coordinators: fjall_config.coordinators,
                 user,
                 is_mock: fjall_config.is_mock,
                 table_prefix: Some(table_prefix),
@@ -390,10 +379,6 @@ pub fn parse_fjall_store_template(rendered: &str) -> Result<FjallStoreConfig, St
         (
             RYA_FJALL_INSTANCE.to_string(),
             jsonld_string(rendered, "rac:instance")?,
-        ),
-        (
-            RYA_FJALL_COORDINATORS.to_string(),
-            jsonld_string(rendered, "rac:coordinators")?,
         ),
         (
             RYA_FJALL_IS_MOCK.to_string(),
@@ -559,5 +544,5 @@ impl NamespaceManager {
 }
 
 #[cfg(test)]
-#[path = "tests/store_tests.rs"]
+#[path = "../tests/store_tests.rs"]
 mod tests;

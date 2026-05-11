@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::domain::{RyaIri, RyaStatement, RyaType};
-use crate::fjall::{CONF_CV, FjallRdfConfiguration, FjallRyaDao};
-use crate::indexing::TemporalInstantRfc3339;
-use crate::query::{QueryOptions, StatementPattern};
+use crate::indexes::TemporalInstantRfc3339;
+use crate::sparql::query::{QueryOptions, StatementPattern};
+use crate::storage::fjall::{CONF_CV, FjallRdfConfiguration, FjallRyaDao};
 
 pub const QUERY_AUTH_PARAM: &str = "query.auth";
 pub const QUERY_RESULT_FORMAT_PARAM: &str = "query.resultformat";
@@ -312,9 +312,8 @@ pub fn controller_config_enables_security_provider(root_toml: &str) -> bool {
 }
 
 pub fn security_config_declares_provider(security_toml: &str) -> bool {
-    security_toml
-        .contains(r#"provider_path = "omrya::web::SecurityProviderImpl""#)
-        || security_toml.contains(r#"provider_path="omrya::web::SecurityProviderImpl""#)
+    security_toml.contains(r#"provider_path = "omrya::api::controller::SecurityProviderImpl""#)
+        || security_toml.contains(r#"provider_path="omrya::api::controller::SecurityProviderImpl""#)
 }
 
 fn subjects_for(
@@ -1005,5 +1004,5 @@ fn iri(value: impl AsRef<str>) -> Result<RyaIri, String> {
 }
 
 #[cfg(test)]
-#[path = "tests/web_tests.rs"]
+#[path = "../tests/web_tests.rs"]
 mod tests;

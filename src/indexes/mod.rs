@@ -13,12 +13,12 @@ pub const GEO_PREDICATES_LIST: &str = "sc.geo.predicates";
 pub const FREETEXT_PREDICATES_LIST: &str = "sc.freetext.predicates";
 pub const TEMPORAL_PREDICATES_LIST: &str = "sc.temporal.predicates";
 pub const RDF_CLOUD_TRIPLE_STORE_CONF_OPTIMIZERS: &str = "query.optimizers";
-pub const FILTER_FUNCTION_OPTIMIZER_ID: &str = "omrya::indexing::filter_function_optimizer";
-pub const ENTITY_CENTRIC_INDEXER_ID: &str = "omrya::indexing::entity_centric";
-pub const ENTITY_OPTIMIZER_ID: &str = "omrya::indexing::entity_optimizer";
-pub const FJALL_GEOMESA_INDEXER_ID: &str = "omrya::indexing::geomesa_geo";
-pub const FJALL_FREETEXT_INDEXER_ID: &str = "omrya::indexing::free_text";
-pub const FJALL_TEMPORAL_INDEXER_ID: &str = "omrya::indexing::temporal";
+pub const FILTER_FUNCTION_OPTIMIZER_ID: &str = "omrya::indexes::filter_function_optimizer";
+pub const ENTITY_CENTRIC_INDEXER_ID: &str = "omrya::indexes::entity_centric";
+pub const ENTITY_OPTIMIZER_ID: &str = "omrya::indexes::entity_optimizer";
+pub const FJALL_GEOMESA_INDEXER_ID: &str = "omrya::indexes::geomesa_geo";
+pub const FJALL_FREETEXT_INDEXER_ID: &str = "omrya::indexes::free_text";
+pub const FJALL_TEMPORAL_INDEXER_ID: &str = "omrya::indexes::temporal";
 pub const USE_PCJ: &str = "sc.use_pcj";
 pub const USE_OPTIMAL_PCJ: &str = "sc.use.optimal.pcj";
 pub const FLUO_APP_NAME: &str = "rya.indexing.pcj.fluo.fluoAppName";
@@ -143,7 +143,7 @@ pub fn configured_indexer_plan(conf: &IndexingConfiguration) -> IndexerConfigura
     }
 
     IndexerConfigurationPlan {
-        additional_indexers_key: crate::fjall::CONF_ADDITIONAL_INDEXERS,
+        additional_indexers_key: crate::storage::fjall::CONF_ADDITIONAL_INDEXERS,
         optimizer_key: RDF_CLOUD_TRIPLE_STORE_CONF_OPTIMIZERS,
         additional_indexers: additional.classes,
         optimizers,
@@ -1174,5 +1174,5 @@ fn is_leap_year(year: i32) -> bool {
 }
 
 #[cfg(test)]
-#[path = "tests/indexing_tests.rs"]
+#[path = "../tests/indexing_tests.rs"]
 mod tests;

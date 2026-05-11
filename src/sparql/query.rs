@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::domain::{RyaIri, RyaStatement, RyaType};
-use crate::indexing::InMemorySecondaryIndexer;
+use crate::indexes::InMemorySecondaryIndexer;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct QueryOptions {
@@ -409,5 +409,5 @@ fn ttl_allowed(
 }
 
 #[cfg(test)]
-#[path = "tests/query_tests.rs"]
+#[path = "../tests/query_tests.rs"]
 mod tests;

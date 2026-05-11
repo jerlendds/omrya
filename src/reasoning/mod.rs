@@ -2011,5 +2011,5 @@ fn schema_types() -> BTreeSet<&'static str> {
 }
 
 #[cfg(test)]
-#[path = "tests/reasoning_tests.rs"]
+#[path = "../tests/reasoning_tests.rs"]
 mod tests;

@@ -2,13 +2,13 @@ use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::domain::{RyaIri, RyaStatement};
-use crate::fjall::{CONF_QUERY_AUTH, FjallRdfConfiguration};
-use crate::fjall_mr::{
-    AC_AUTH_PROP, AC_INSTANCE_PROP, AC_MOCK_PROP, AC_PWD_PROP, AC_USERNAME_PROP, AC_COORDINATOR_PROP,
-    TABLE_PREFIX_PROPERTY,
-};
 use crate::pcj;
-use crate::query::{InMemoryRyaDao, QueryOptions, StatementPattern};
+use crate::sparql::query::{InMemoryRyaDao, QueryOptions, StatementPattern};
+use crate::storage::fjall::{CONF_QUERY_AUTH, FjallRdfConfiguration};
+use crate::tools::mapreduce::{
+    AC_AUTH_PROP, AC_COORDINATOR_PROP, AC_INSTANCE_PROP, AC_MOCK_PROP, AC_PWD_PROP,
+    AC_USERNAME_PROP, TABLE_PREFIX_PROPERTY,
+};
 
 pub const CHILD_SUFFIX: &str = ".child";
 pub const START_TIME_PROP: &str = "tool.start.time";
@@ -261,7 +261,6 @@ impl InstanceType {
             Self::Distributed => "DISTRIBUTED",
         }
     }
-
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -698,5 +697,5 @@ pub fn visibility_authorized(
 }
 
 #[cfg(test)]
-#[path = "tests/merger_tests.rs"]
+#[path = "../tests/merger_tests.rs"]
 mod tests;

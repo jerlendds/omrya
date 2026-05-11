@@ -10,13 +10,14 @@ use std::process::Command;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use omrya::web::{QueryRequest, RdfController};
+use omrya::api::controller::{QueryRequest, RdfController};
+use omrya::code_intel::repo_to_rdf_triples;
 
 const DEFAULT_ADDR: &str = "127.0.0.1:7878";
 const DEFAULT_TABLE: &str = "sro";
 const SESSION_FILE: &str = "session.token";
 const SRO_LOG_FILE: &str = "sro.log";
-const SPARQL_HTML: &str = include_str!("../sparql.html");
+const SPARQL_HTML: &str = include_str!("web/sparql.html");
 const AVR_QUERY_ALL: &str = "SELECT * WHERE { ?s ?p ?o }";
 const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 const CODE_NS: &str = "http://omrya.local/code/";
@@ -948,6 +949,11 @@ fn ingest_repo_triples(
         format!("{CODE_NS}indexedFileCount"),
         files.len().to_string(),
     ));
+    triples.extend(
+        repo_to_rdf_triples(&repo_path, &repo_uri)?
+            .into_iter()
+            .map(|triple| triple.into_tuple()),
+    );
 
     let mut finding_index = 0;
     for relative in files {

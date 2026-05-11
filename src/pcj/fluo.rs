@@ -562,7 +562,11 @@ impl FluoQueryMetadataDao {
             columns::JOIN_VARIABLE_ORDER,
             metadata.variable_order.to_string(),
         );
-        fluo.set(row, columns::JOIN_TYPE, metadata.join_type.as_storage_name());
+        fluo.set(
+            row,
+            columns::JOIN_TYPE,
+            metadata.join_type.as_storage_name(),
+        );
         fluo.set(row, columns::JOIN_PARENT_NODE_ID, &metadata.parent_node_id);
         fluo.set(
             row,
@@ -1993,5 +1997,5 @@ fn format_number(value: u64) -> String {
 }
 
 #[cfg(test)]
-#[path = "tests/fluo_pcj_tests.rs"]
+#[path = "../tests/fluo_pcj_tests.rs"]
 mod tests;

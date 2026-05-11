@@ -1,8 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::domain::{RyaIri, RyaType, XSD_ANY_URI};
-use crate::fjall::{CONF_QUERY_AUTH, FjallRdfConfiguration};
 use crate::resolver::{DELIM_BYTE, deserialize, serialize_type};
+use crate::storage::fjall::{CONF_QUERY_AUTH, FjallRdfConfiguration};
+
+pub mod fluo;
+pub mod indexing;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct VariableOrder(Vec<String>);
@@ -1023,5 +1026,5 @@ pub fn iri(value: &str) -> RyaType {
 }
 
 #[cfg(test)]
-#[path = "tests/pcj_tests.rs"]
+#[path = "../tests/pcj_tests.rs"]
 mod tests;

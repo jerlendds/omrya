@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::domain::{RyaIri, RyaStatement, RyaType};
-use crate::indexing::{
+use crate::indexes::{
     EntityCentricIndex, EntityIndexMutation, InMemoryFreeTextIndexer, InMemoryGeoIndexer,
     InMemorySecondaryIndexer, InMemoryTemporalIndexer,
 };
@@ -29,14 +29,14 @@ pub const TBL_SPO_SUFFIX: &str = "spo";
 pub const TBL_PO_SUFFIX: &str = "po";
 pub const TBL_OSP_SUFFIX: &str = "osp";
 
-pub const RYA_MAPREDUCE_PACKAGE: &str = "omrya::fjall_mr";
-pub const MR_UTILS_PACKAGE: &str = "omrya::fjall_mr::utils";
-pub const RYA_INPUT_FORMAT_ID: &str = "omrya::fjall_mr::input_format";
-pub const RYA_OUTPUT_FORMAT_ID: &str = "omrya::fjall_mr::output_format";
-pub const RDF_FILE_INPUT_FORMAT_ID: &str = "omrya::fjall_mr::rdf_file_input";
-pub const RDF_FILE_INPUT_TOOL_ID: &str = "omrya::fjall_mr::tools::rdf_file_input";
-pub const FJALL_RDF_COUNT_TOOL_ID: &str = "omrya::fjall_mr::tools::rdf_count";
-pub const UPGRADE_322_TOOL_ID: &str = "omrya::fjall_mr::tools::upgrade_322";
+pub const RYA_MAPREDUCE_PACKAGE: &str = "omrya::tools::mapreduce";
+pub const MR_UTILS_PACKAGE: &str = "omrya::tools::mapreduce::utils";
+pub const RYA_INPUT_FORMAT_ID: &str = "omrya::tools::mapreduce::input_format";
+pub const RYA_OUTPUT_FORMAT_ID: &str = "omrya::tools::mapreduce::output_format";
+pub const RDF_FILE_INPUT_FORMAT_ID: &str = "omrya::tools::mapreduce::rdf_file_input";
+pub const RDF_FILE_INPUT_TOOL_ID: &str = "omrya::tools::mapreduce::tools::rdf_file_input";
+pub const FJALL_RDF_COUNT_TOOL_ID: &str = "omrya::tools::mapreduce::tools::rdf_count";
+pub const UPGRADE_322_TOOL_ID: &str = "omrya::tools::mapreduce::tools::upgrade_322";
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct MrConfiguration {
@@ -902,5 +902,5 @@ fn read_u64(bytes: &[u8], cursor: &mut usize) -> Result<u64, String> {
 }
 
 #[cfg(test)]
-#[path = "tests/fjall_mr_tests.rs"]
+#[path = "../tests/fjall_mr_tests.rs"]
 mod tests;

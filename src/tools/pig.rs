@@ -1,8 +1,8 @@
 use crate::domain::RyaStatement;
-use crate::fjall_mr::{
+use crate::resolver::triple::{TableLayout, TripleContext};
+use crate::tools::mapreduce::{
     FjallKeyValue, MrConfiguration, RyaStatementInputFormat, RyaStatementRecordReader,
 };
-use crate::resolver::triple::{TableLayout, TripleContext};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PigTuple {
@@ -85,5 +85,5 @@ impl StatementPatternStorage {
 }
 
 #[cfg(test)]
-#[path = "tests/fjall_pig_tests.rs"]
+#[path = "../tests/fjall_pig_tests.rs"]
 mod tests;

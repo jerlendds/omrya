@@ -3,12 +3,12 @@ use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::domain::{RyaStatement, RyaType, XSD_DATE, XSD_DATETIME};
-use crate::query::{InMemoryRyaDao, QueryOptions, StatementPattern};
 use crate::resolver::datetime::normalize_xsd_datetime_to_utc;
 use crate::resolver::serialize_type;
 use crate::resolver::triple::{
     TableLayout, TripleContext, TriplePatternStrategyKind, TripleRowRegex,
 };
+use crate::sparql::query::{InMemoryRyaDao, QueryOptions, StatementPattern};
 use fjall_kv::secure::{
     AllowAllPermissions, Authorizations, Cell, CompositeKey, CompositePrefix, Credentials,
     SecureDatabase, SecureKeyspace, Session, StaticAuthenticator, StaticAuthorizor, VersionScan,
@@ -34,7 +34,8 @@ pub const VERSION_SUBJECT_RYA: &str = "urn:omrya/version";
 pub const VERSION_PREDICATE_RYA: &str = "urn:omrya/versionPredicate";
 pub const VERSION_RYA: &str = "3.2.10-SNAPSHOT";
 
-pub const FIRST_ENTRY_IN_ROW_ITERATOR_ID: &str = "omrya::fjall::iterators::first_entry_in_row";
+pub const FIRST_ENTRY_IN_ROW_ITERATOR_ID: &str =
+    "omrya::storage::fjall::iterators::first_entry_in_row";
 pub const DEFAULT_CONNECTOR_ID: &str = "in-memory-fjall-connector";
 pub const DEFAULT_MULTI_TABLE_BATCH_WRITER_ID: &str = "in-memory-multi-table-batch-writer";
 pub const FJALL_DATETIME_DEFAULT_OFFSET_MINUTES: i32 = 0;
@@ -251,13 +252,13 @@ pub enum BuildFixIndexerKind {
 impl BuildFixIndexerKind {
     pub fn registry_name(&self) -> &'static str {
         match self {
-            Self::NullFreeText => "omrya::fjall::indexers::null_free_text",
-            Self::NullGeo => "omrya::fjall::indexers::null_geo",
-            Self::NullTemporal => "omrya::fjall::indexers::null_temporal",
-            Self::EntityCentric => "omrya::fjall::indexers::entity_centric",
-            Self::FreeText => "omrya::fjall::indexers::free_text",
-            Self::GeoMesaGeo => "omrya::fjall::indexers::geomesa_geo",
-            Self::Temporal => "omrya::fjall::indexers::temporal",
+            Self::NullFreeText => "omrya::storage::fjall::indexers::null_free_text",
+            Self::NullGeo => "omrya::storage::fjall::indexers::null_geo",
+            Self::NullTemporal => "omrya::storage::fjall::indexers::null_temporal",
+            Self::EntityCentric => "omrya::storage::fjall::indexers::entity_centric",
+            Self::FreeText => "omrya::storage::fjall::indexers::free_text",
+            Self::GeoMesaGeo => "omrya::storage::fjall::indexers::geomesa_geo",
+            Self::Temporal => "omrya::storage::fjall::indexers::temporal",
         }
     }
 
@@ -403,7 +404,8 @@ impl IteratorSetting {
     }
 
     fn is_first_entry_in_row(&self) -> bool {
-        self.iterator_id == FIRST_ENTRY_IN_ROW_ITERATOR_ID || self.iterator_id == "first_entry_in_row"
+        self.iterator_id == FIRST_ENTRY_IN_ROW_ITERATOR_ID
+            || self.iterator_id == "first_entry_in_row"
     }
 }
 
@@ -1393,5 +1395,5 @@ fn iterator_key(pattern: &str, i: usize, j: Option<usize>) -> String {
 }
 
 #[cfg(test)]
-#[path = "tests/fjall_tests.rs"]
+#[path = "../../tests/fjall_tests.rs"]
 mod tests;
