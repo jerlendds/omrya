@@ -64,17 +64,16 @@ impl RyaType {
         }
     }
 
-    pub fn java_compare_parts(
+    pub fn compare_parts(
         data: Option<&str>,
         data_type: Option<&str>,
         other_data: Option<&str>,
         other_data_type: Option<&str>,
     ) -> Ordering {
-        java_nullable_cmp(data, other_data)
-            .then_with(|| java_nullable_cmp(data_type, other_data_type))
+        nullable_cmp(data, other_data).then_with(|| nullable_cmp(data_type, other_data_type))
     }
 
-    pub fn java_equals_parts(
+    pub fn equals_parts(
         data: Option<&str>,
         data_type: Option<&str>,
         other_data: Option<&str>,
@@ -84,7 +83,7 @@ impl RyaType {
     }
 }
 
-fn java_nullable_cmp(left: Option<&str>, right: Option<&str>) -> Ordering {
+fn nullable_cmp(left: Option<&str>, right: Option<&str>) -> Ordering {
     match (left, right) {
         (Some(left), Some(right)) => left.cmp(right),
         (Some(_), None) => Ordering::Less,

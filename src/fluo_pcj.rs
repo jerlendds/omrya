@@ -23,69 +23,63 @@ pub const XSD_INT: &str = "http://www.w3.org/2001/XMLSchema#int";
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PcjFluoModule {
     pub module: &'static str,
-    pub artifact_id: &'static str,
-    pub packaging: &'static str,
+    pub crate_name: &'static str,
+    pub crate_type: &'static str,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct PcjFluoIntegrationDependency {
-    pub group_id: &'static str,
-    pub artifact_id: &'static str,
+    pub crate_name: &'static str,
     pub scope: Option<&'static str>,
 }
 
 pub const PCJ_FLUO_VERSION: &str = "1.0.0-beta-2";
 pub const PCJ_FLUO_MODULES: &[PcjFluoModule] = &[
     PcjFluoModule {
-        module: "pcj.fluo.api",
-        artifact_id: "rya.pcj.fluo.api",
-        packaging: "jar",
+        module: "pcj_fluo_api",
+        crate_name: "omrya-pcj-fluo-api",
+        crate_type: "lib",
     },
     PcjFluoModule {
-        module: "pcj.fluo.app",
-        artifact_id: "rya.pcj.fluo.app",
-        packaging: "jar-with-dependencies",
+        module: "pcj_fluo_app",
+        crate_name: "omrya-pcj-fluo-app",
+        crate_type: "bin",
     },
     PcjFluoModule {
-        module: "pcj.fluo.client",
-        artifact_id: "rya.pcj.fluo.client",
-        packaging: "jar-with-dependencies",
+        module: "pcj_fluo_client",
+        crate_name: "omrya-pcj-fluo-client",
+        crate_type: "bin",
     },
     PcjFluoModule {
-        module: "pcj.fluo.integration",
-        artifact_id: "rya.pcj.fluo.integration",
-        packaging: "failsafe-integration-tests",
+        module: "pcj_fluo_integration",
+        crate_name: "omrya-pcj-fluo-integration",
+        crate_type: "integration-test",
     },
     PcjFluoModule {
-        module: "pcj.fluo.demo",
-        artifact_id: "rya.pcj.fluo.demo",
-        packaging: "jar-with-dependencies",
+        module: "pcj_fluo_demo",
+        crate_name: "omrya-pcj-fluo-demo",
+        crate_type: "example",
     },
 ];
 pub const PCJ_FLUO_INTEGRATION_DEPENDENCIES: &[PcjFluoIntegrationDependency] = &[
     PcjFluoIntegrationDependency {
-        group_id: "org.apache.rya",
-        artifact_id: "rya.pcj.fluo.api",
+        crate_name: "omrya-pcj-fluo-api",
         scope: None,
     },
     PcjFluoIntegrationDependency {
-        group_id: "org.apache.rya",
-        artifact_id: "rya.pcj.fluo.client",
+        crate_name: "omrya-pcj-fluo-client",
         scope: None,
     },
     PcjFluoIntegrationDependency {
-        group_id: "org.apache.rya",
-        artifact_id: "rya.indexing",
+        crate_name: "omrya-indexing",
         scope: None,
     },
     PcjFluoIntegrationDependency {
-        group_id: "io.fluo",
-        artifact_id: "fluo-mini",
+        crate_name: "fluo-mini",
         scope: Some("test"),
     },
     PcjFluoIntegrationDependency {
-        group_id: "io.fluo",
-        artifact_id: "fluo-api",
+        crate_name: "fluo-api",
         scope: None,
     },
 ];
@@ -413,14 +407,14 @@ pub enum JoinType {
 }
 
 impl JoinType {
-    pub fn as_java_name(self) -> &'static str {
+    pub fn as_storage_name(self) -> &'static str {
         match self {
             Self::NaturalJoin => "NATURAL_JOIN",
             Self::LeftOuterJoin => "LEFT_OUTER_JOIN",
         }
     }
 
-    pub fn parse_java_name(value: &str) -> Result<Self, String> {
+    pub fn parse_storage_name(value: &str) -> Result<Self, String> {
         match value {
             "NATURAL_JOIN" => Ok(Self::NaturalJoin),
             "LEFT_OUTER_JOIN" => Ok(Self::LeftOuterJoin),
@@ -568,7 +562,7 @@ impl FluoQueryMetadataDao {
             columns::JOIN_VARIABLE_ORDER,
             metadata.variable_order.to_string(),
         );
-        fluo.set(row, columns::JOIN_TYPE, metadata.join_type.as_java_name());
+        fluo.set(row, columns::JOIN_TYPE, metadata.join_type.as_storage_name());
         fluo.set(row, columns::JOIN_PARENT_NODE_ID, &metadata.parent_node_id);
         fluo.set(
             row,
@@ -590,7 +584,7 @@ impl FluoQueryMetadataDao {
                 node_id,
                 columns::JOIN_VARIABLE_ORDER,
             )?),
-            join_type: JoinType::parse_java_name(required(fluo, node_id, columns::JOIN_TYPE)?)?,
+            join_type: JoinType::parse_storage_name(required(fluo, node_id, columns::JOIN_TYPE)?)?,
             parent_node_id: required(fluo, node_id, columns::JOIN_PARENT_NODE_ID)?.to_string(),
             left_child_node_id: required(fluo, node_id, columns::JOIN_LEFT_CHILD_NODE_ID)?
                 .to_string(),
@@ -1583,7 +1577,7 @@ pub struct RyaExportParameters {
 impl RyaExportParameters {
     pub const CONF_EXPORT_TO_RYA: &'static str = "pcj.fluo.export.rya.enabled";
     pub const CONF_FJALL_INSTANCE_NAME: &'static str = "pcj.fluo.export.rya.fjallInstanceName";
-    pub const CONF_ZOOKEEPER_SERVERS: &'static str = "pcj.fluo.export.rya.zookeeperServers";
+    pub const CONF_COORDINATOR_SERVERS: &'static str = "pcj.fluo.export.rya.coordinatorServers";
     pub const CONF_EXPORTER_USERNAME: &'static str = "pcj.fluo.export.rya.exporterUsername";
     pub const CONF_EXPORTER_PASSWORD: &'static str = "pcj.fluo.export.rya.exporterPassword";
 
@@ -1617,14 +1611,14 @@ impl RyaExportParameters {
             .map(String::as_str)
     }
 
-    pub fn set_zookeeper_servers(&mut self, value: impl Into<String>) {
+    pub fn set_coordinator_servers(&mut self, value: impl Into<String>) {
         self.params
-            .insert(Self::CONF_ZOOKEEPER_SERVERS.to_string(), value.into());
+            .insert(Self::CONF_COORDINATOR_SERVERS.to_string(), value.into());
     }
 
-    pub fn zookeeper_servers(&self) -> Option<&str> {
+    pub fn coordinator_servers(&self) -> Option<&str> {
         self.params
-            .get(Self::CONF_ZOOKEEPER_SERVERS)
+            .get(Self::CONF_COORDINATOR_SERVERS)
             .map(String::as_str)
     }
 
@@ -1881,7 +1875,7 @@ impl QueryReportRenderer {
                 ))
                 .append_item(ReportItem::with_value(
                     "Join Type",
-                    join.join_type.as_java_name(),
+                    join.join_type.as_storage_name(),
                 ))
                 .append_item(ReportItem::with_value(
                     "Parent Node ID",

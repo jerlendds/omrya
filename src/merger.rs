@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use crate::domain::{RyaIri, RyaStatement};
 use crate::fjall::{CONF_QUERY_AUTH, FjallRdfConfiguration};
 use crate::fjall_mr::{
-    AC_AUTH_PROP, AC_INSTANCE_PROP, AC_MOCK_PROP, AC_PWD_PROP, AC_USERNAME_PROP, AC_ZK_PROP,
+    AC_AUTH_PROP, AC_INSTANCE_PROP, AC_MOCK_PROP, AC_PWD_PROP, AC_USERNAME_PROP, AC_COORDINATOR_PROP,
     TABLE_PREFIX_PROPERTY,
 };
 use crate::pcj;
@@ -47,12 +47,12 @@ pub const CHILD_TABLE_PREFIX: &str = "ct_";
 pub const CHILD_AUTH: &str = "child_auth";
 
 const CONFIG_USE_MOCK_INSTANCE: &str = "sc.use_mock_instance";
-const CONFIG_CLOUDBASE_INSTANCE: &str = "sc.cloudbase.instancename";
-const CONFIG_CLOUDBASE_USER: &str = "sc.cloudbase.username";
-const CONFIG_CLOUDBASE_PASSWORD: &str = "sc.cloudbase.password";
-const CONFIG_CLOUDBASE_AUTHS: &str = "sc.cloudbase.auths";
-const CONFIG_CLOUDBASE_ZOOKEEPERS: &str = "sc.cloudbase.zookeepers";
-const CONFIG_CLOUDBASE_TBL_PREFIX: &str = "sc.cloudbase.tableprefix";
+const CONFIG_FJALL_INSTANCE: &str = "sc.fjall.instancename";
+const CONFIG_FJALL_USER: &str = "sc.fjall.username";
+const CONFIG_FJALL_PASSWORD: &str = "sc.fjall.password";
+const CONFIG_FJALL_AUTHS: &str = "sc.fjall.auths";
+const CONFIG_FJALL_COORDINATORS: &str = "sc.fjall.coordinators";
+const CONFIG_FJALL_TBL_PREFIX: &str = "sc.fjall.tableprefix";
 const RDF_TBL_PREFIX: &str = "rdf.tablePrefix";
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -115,7 +115,7 @@ pub fn month_before(time_millis: i64) -> i64 {
 }
 
 pub fn create_rya_uri(local_name: &str) -> RyaIri {
-    RyaIri::from_namespace("#:", local_name).expect("test namespace is a valid Java-style Rya URI")
+    RyaIri::from_namespace("#:", local_name).expect("test namespace is a valid Rya URI")
 }
 
 pub fn create_rya_statement(
@@ -177,27 +177,27 @@ impl ToolConfig {
 pub fn duplicate_key_map() -> BTreeMap<&'static str, Vec<&'static str>> {
     BTreeMap::from([
         (AC_MOCK_PROP, vec![CONFIG_USE_MOCK_INSTANCE]),
-        (AC_INSTANCE_PROP, vec![CONFIG_CLOUDBASE_INSTANCE]),
-        (AC_USERNAME_PROP, vec![CONFIG_CLOUDBASE_USER]),
-        (AC_PWD_PROP, vec![CONFIG_CLOUDBASE_PASSWORD]),
-        (AC_AUTH_PROP, vec![CONFIG_CLOUDBASE_AUTHS, CONF_QUERY_AUTH]),
-        (AC_ZK_PROP, vec![CONFIG_CLOUDBASE_ZOOKEEPERS]),
+        (AC_INSTANCE_PROP, vec![CONFIG_FJALL_INSTANCE]),
+        (AC_USERNAME_PROP, vec![CONFIG_FJALL_USER]),
+        (AC_PWD_PROP, vec![CONFIG_FJALL_PASSWORD]),
+        (AC_AUTH_PROP, vec![CONFIG_FJALL_AUTHS, CONF_QUERY_AUTH]),
+        (AC_COORDINATOR_PROP, vec![CONFIG_FJALL_COORDINATORS]),
         (
             TABLE_PREFIX_PROPERTY,
-            vec![CONFIG_CLOUDBASE_TBL_PREFIX, RDF_TBL_PREFIX],
+            vec![CONFIG_FJALL_TBL_PREFIX, RDF_TBL_PREFIX],
         ),
         ("ac.mock.child", vec!["sc.use_mock_instance.child"]),
-        ("ac.instance.child", vec!["sc.cloudbase.instancename.child"]),
-        ("ac.username.child", vec!["sc.cloudbase.username.child"]),
-        ("ac.pwd.child", vec!["sc.cloudbase.password.child"]),
+        ("ac.instance.child", vec!["sc.fjall.instancename.child"]),
+        ("ac.username.child", vec!["sc.fjall.username.child"]),
+        ("ac.pwd.child", vec!["sc.fjall.password.child"]),
         (
             "ac.auth.child",
-            vec!["sc.cloudbase.auths.child", "query.auth.child"],
+            vec!["sc.fjall.auths.child", "query.auth.child"],
         ),
-        ("ac.zk.child", vec!["sc.cloudbase.zookeepers.child"]),
+        ("ac.coordinator.child", vec!["sc.fjall.coordinators.child"]),
         (
             "rdf.tablePrefix.child",
-            vec!["sc.cloudbase.tableprefix.child", "rdf.tablePrefix.child"],
+            vec!["sc.fjall.tableprefix.child", "rdf.tablePrefix.child"],
         ),
     ])
 }
@@ -254,13 +254,14 @@ pub enum InstanceType {
 }
 
 impl InstanceType {
-    pub fn as_java_name(self) -> &'static str {
+    pub fn as_config_value(self) -> &'static str {
         match self {
             Self::Mock => "MOCK",
             Self::Mini => "MINI",
             Self::Distributed => "DISTRIBUTED",
         }
     }
+
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -348,7 +349,7 @@ fn instance_tool_config(instance: &FjallInstanceConfig) -> ToolConfig {
     config.set(AC_PWD_PROP, instance.password.clone());
     config.set(TABLE_PREFIX_PROPERTY, instance.table_prefix.clone());
     config.set(AC_AUTH_PROP, instance.auth.clone());
-    config.set(AC_ZK_PROP, "localhost");
+    config.set(AC_COORDINATOR_PROP, "localhost");
     set_duplicate_keys(&mut config);
     config
 }
@@ -357,8 +358,8 @@ fn instance_tool_config(instance: &FjallInstanceConfig) -> ToolConfig {
 pub enum StartupScriptKind {
     CopyTool,
     MergeTool,
-    HadoopCopyTool,
-    HadoopMergeTool,
+    BatchCopyTool,
+    BatchMergeTool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -371,89 +372,89 @@ pub enum StartupScriptPlatform {
 pub struct StartupScript {
     pub name: &'static str,
     pub platform: StartupScriptPlatform,
-    pub tool_class: &'static str,
-    pub launch_prefix: &'static str,
-    pub jar_pattern: &'static str,
+    pub command: &'static str,
+    pub launch_command: &'static str,
+    pub artifact_pattern: &'static str,
     pub config_path: &'static str,
-    pub log4j_path: Option<&'static str>,
+    pub log_config_path: Option<&'static str>,
 }
 
-pub const COPY_TOOL_CLASS: &str = "mvm.rya.fjall.mr.merge.CopyTool";
-pub const MERGE_TOOL_CLASS: &str = "mvm.rya.fjall.mr.merge.MergeTool";
+pub const COPY_COMMAND: &str = "omrya merger copy";
+pub const MERGE_COMMAND: &str = "omrya merger merge";
 
 pub fn startup_script(kind: StartupScriptKind, platform: StartupScriptPlatform) -> StartupScript {
     match (kind, platform) {
         (StartupScriptKind::CopyTool, StartupScriptPlatform::Unix) => StartupScript {
             name: "copy_tool.sh",
             platform,
-            tool_class: COPY_TOOL_CLASS,
-            launch_prefix: "java -Xms256m -Xmx1024M",
-            jar_pattern: "rya.merger-*.jar",
-            config_path: "config/copy_tool_configuration.xml",
-            log4j_path: Some("config/copy_tool_log4j.xml"),
+            command: COPY_COMMAND,
+            launch_command: COPY_COMMAND,
+            artifact_pattern: "omrya-*",
+            config_path: "config/copy_tool.toml",
+            log_config_path: Some("config/copy_tool_logging.toml"),
         },
         (StartupScriptKind::CopyTool, StartupScriptPlatform::Windows) => StartupScript {
             name: "copy_tool.bat",
             platform,
-            tool_class: COPY_TOOL_CLASS,
-            launch_prefix: "java -Xms256m -Xmx1024M",
-            jar_pattern: "rya.merger-*.jar",
-            config_path: "config/copy_tool_configuration.xml",
-            log4j_path: Some("config/copy_tool_log4j.xml"),
+            command: COPY_COMMAND,
+            launch_command: COPY_COMMAND,
+            artifact_pattern: "omrya-*",
+            config_path: "config/copy_tool.toml",
+            log_config_path: Some("config/copy_tool_logging.toml"),
         },
         (StartupScriptKind::MergeTool, StartupScriptPlatform::Unix) => StartupScript {
             name: "merge_tool.sh",
             platform,
-            tool_class: MERGE_TOOL_CLASS,
-            launch_prefix: "java -Xms256m -Xmx1024M",
-            jar_pattern: "rya.merger-*.jar",
-            config_path: "config/configuration.xml",
-            log4j_path: Some("config/log4j.xml"),
+            command: MERGE_COMMAND,
+            launch_command: MERGE_COMMAND,
+            artifact_pattern: "omrya-*",
+            config_path: "config/merge_tool.toml",
+            log_config_path: Some("config/merge_tool_logging.toml"),
         },
         (StartupScriptKind::MergeTool, StartupScriptPlatform::Windows) => StartupScript {
             name: "merge_tool.bat",
             platform,
-            tool_class: MERGE_TOOL_CLASS,
-            launch_prefix: "java -Xms256m -Xmx1024M",
-            jar_pattern: "rya.merger-*.jar",
-            config_path: "config/configuration.xml",
-            log4j_path: Some("config/log4j.xml"),
+            command: MERGE_COMMAND,
+            launch_command: MERGE_COMMAND,
+            artifact_pattern: "omrya-*",
+            config_path: "config/merge_tool.toml",
+            log_config_path: Some("config/merge_tool_logging.toml"),
         },
-        (StartupScriptKind::HadoopCopyTool, StartupScriptPlatform::Unix) => StartupScript {
-            name: "hadoop_copy_tool.sh",
+        (StartupScriptKind::BatchCopyTool, StartupScriptPlatform::Unix) => StartupScript {
+            name: "batch_copy_tool.sh",
             platform,
-            tool_class: COPY_TOOL_CLASS,
-            launch_prefix: "${FJALL_HOME}/bin/tool.sh or hadoop jar",
-            jar_pattern: "rya.merger-*-shaded.jar",
-            config_path: "config/copy_tool_configuration.xml",
-            log4j_path: None,
+            command: COPY_COMMAND,
+            launch_command: COPY_COMMAND,
+            artifact_pattern: "omrya-*",
+            config_path: "config/copy_tool.toml",
+            log_config_path: None,
         },
-        (StartupScriptKind::HadoopCopyTool, StartupScriptPlatform::Windows) => StartupScript {
-            name: "hadoop_copy_tool.bat",
+        (StartupScriptKind::BatchCopyTool, StartupScriptPlatform::Windows) => StartupScript {
+            name: "batch_copy_tool.bat",
             platform,
-            tool_class: COPY_TOOL_CLASS,
-            launch_prefix: "hadoop jar",
-            jar_pattern: "rya.merger-*-shaded.jar",
-            config_path: "config/copy_tool_configuration.xml",
-            log4j_path: None,
+            command: COPY_COMMAND,
+            launch_command: COPY_COMMAND,
+            artifact_pattern: "omrya-*",
+            config_path: "config/copy_tool.toml",
+            log_config_path: None,
         },
-        (StartupScriptKind::HadoopMergeTool, StartupScriptPlatform::Unix) => StartupScript {
-            name: "hadoop_merge_tool.sh",
+        (StartupScriptKind::BatchMergeTool, StartupScriptPlatform::Unix) => StartupScript {
+            name: "batch_merge_tool.sh",
             platform,
-            tool_class: MERGE_TOOL_CLASS,
-            launch_prefix: "hadoop jar",
-            jar_pattern: "rya.merger-*-shaded.jar",
-            config_path: "config/configuration.xml",
-            log4j_path: None,
+            command: MERGE_COMMAND,
+            launch_command: MERGE_COMMAND,
+            artifact_pattern: "omrya-*",
+            config_path: "config/merge_tool.toml",
+            log_config_path: None,
         },
-        (StartupScriptKind::HadoopMergeTool, StartupScriptPlatform::Windows) => StartupScript {
-            name: "hadoop_merge_tool.bat",
+        (StartupScriptKind::BatchMergeTool, StartupScriptPlatform::Windows) => StartupScript {
+            name: "batch_merge_tool.bat",
             platform,
-            tool_class: MERGE_TOOL_CLASS,
-            launch_prefix: "hadoop jar",
-            jar_pattern: "rya.merger-*-shaded.jar",
-            config_path: "config/configuration.xml",
-            log4j_path: None,
+            command: MERGE_COMMAND,
+            launch_command: MERGE_COMMAND,
+            artifact_pattern: "omrya-*",
+            config_path: "config/merge_tool.toml",
+            log_config_path: None,
         },
     }
 }

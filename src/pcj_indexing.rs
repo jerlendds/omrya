@@ -15,12 +15,12 @@ pub const PCJ_STORAGE_TYPE: &str = "rya.indexing.pcj.storageType";
 pub const PCJ_UPDATER_TYPE: &str = "rya.indexing.pcj.updaterType";
 pub const USE_PCJ_FLUO_UPDATER: &str = "rya.indexing.pcj.updater.fluo";
 pub const FLUO_APP_NAME: &str = "rya.indexing.pcj.fluo.fluoAppName";
-pub const FJALL_ZOOKEEPERS: &str = "sc.cloudbase.zookeepers";
-pub const FJALL_INSTANCE: &str = "sc.cloudbase.instancename";
-pub const FJALL_USERNAME: &str = "sc.cloudbase.username";
-pub const FJALL_PASSWORD: &str = "sc.cloudbase.password";
-pub const STATEMENT_VISIBILITY: &str = "sc.cloudbase.authorizations";
-pub const PRECOMPUTED_JOIN_INDEXER_CLASS: &str = "mvm.rya.indexing.external.PrecomputedJoinIndexer";
+pub const FJALL_COORDINATORS: &str = "sc.fjall.coordinators";
+pub const FJALL_INSTANCE: &str = "sc.fjall.instancename";
+pub const FJALL_USERNAME: &str = "sc.fjall.username";
+pub const FJALL_PASSWORD: &str = "sc.fjall.password";
+pub const STATEMENT_VISIBILITY: &str = "sc.fjall.authorizations";
+pub const PRECOMPUTED_JOIN_INDEXER_ID: &str = "omrya::pcj::precomputed_join_indexer";
 pub const RYA_INDEXING_PCJ_ARTIFACT_ID: &str = "rya.indexing.pcj";
 
 pub type SharedPcjTables = Rc<RefCell<InMemoryPcjTables>>;
@@ -363,13 +363,13 @@ impl FluoPcjUpdaterConfig {
         self.config.get(FLUO_APP_NAME)
     }
 
-    pub fn fjall_zookeepers(&self) -> Option<&str> {
-        self.config.get(FJALL_ZOOKEEPERS)
+    pub fn fjall_coordinators(&self) -> Option<&str> {
+        self.config.get(FJALL_COORDINATORS)
     }
 
-    pub fn fluo_zookeepers(&self) -> Option<String> {
-        self.fjall_zookeepers()
-            .map(|zookeepers| format!("{zookeepers}/fluo"))
+    pub fn fluo_coordinators(&self) -> Option<String> {
+        self.fjall_coordinators()
+            .map(|coordinators| format!("{coordinators}/fluo"))
     }
 
     pub fn fjall_instance(&self) -> Option<&str> {
@@ -558,8 +558,8 @@ impl FluoPcjUpdaterSupplier {
 
         let fluo_config = FluoPcjUpdaterConfig::new(config);
         required(fluo_config.fluo_app_name(), FLUO_APP_NAME)?;
-        required(fluo_config.fluo_zookeepers().as_deref(), FJALL_ZOOKEEPERS)?;
-        required(fluo_config.fjall_zookeepers(), FJALL_ZOOKEEPERS)?;
+        required(fluo_config.fluo_coordinators().as_deref(), FJALL_COORDINATORS)?;
+        required(fluo_config.fjall_coordinators(), FJALL_COORDINATORS)?;
         required(fluo_config.fjall_instance(), FJALL_INSTANCE)?;
         required(fluo_config.fjall_username(), FJALL_USERNAME)?;
         required(fluo_config.fjall_password(), FJALL_PASSWORD)?;

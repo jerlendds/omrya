@@ -38,12 +38,12 @@ impl PartitionKey {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct CloudbaseValueConverter {
+pub struct FjallValueConverter {
     pair_delimiter: String,
     value_delimiter: String,
 }
 
-impl Default for CloudbaseValueConverter {
+impl Default for FjallValueConverter {
     fn default() -> Self {
         Self {
             pair_delimiter: DEFAULT_PAIR_DELIMITER.to_string(),
@@ -52,7 +52,7 @@ impl Default for CloudbaseValueConverter {
     }
 }
 
-impl CloudbaseValueConverter {
+impl FjallValueConverter {
     pub fn new(pair_delimiter: Option<&str>, value_delimiter: Option<&str>) -> Self {
         Self {
             pair_delimiter: non_empty_or(pair_delimiter, DEFAULT_PAIR_DELIMITER).to_string(),
@@ -179,11 +179,11 @@ impl ConversionOperation {
             '^' => parsed = parsed.powf(self.operand),
             _ => {}
         }
-        Some(java_double_string(parsed))
+        Some(format_decimal_value(parsed))
     }
 }
 
-fn java_double_string(value: f64) -> String {
+fn format_decimal_value(value: f64) -> String {
     if value.fract() == 0.0 {
         format!("{value:.1}")
     } else {
@@ -194,14 +194,14 @@ fn java_double_string(value: f64) -> String {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GvFrequencyFilter {
     frequency: String,
-    converter: CloudbaseValueConverter,
+    converter: FjallValueConverter,
 }
 
 impl GvFrequencyFilter {
     pub fn new(frequency: Option<&str>) -> Self {
         Self {
             frequency: non_empty_or(frequency, "0.0").to_string(),
-            converter: CloudbaseValueConverter::default(),
+            converter: FjallValueConverter::default(),
         }
     }
 
@@ -226,7 +226,7 @@ pub struct GvDateFilter {
     date_start_field: String,
     date_end_field: String,
     active_field: String,
-    converter: CloudbaseValueConverter,
+    converter: FjallValueConverter,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -282,7 +282,7 @@ impl GvDateFilter {
             date_start_field: "date-start".to_string(),
             date_end_field: "date-end".to_string(),
             active_field: "version".to_string(),
-            converter: CloudbaseValueConverter::default(),
+            converter: FjallValueConverter::default(),
         }
     }
 
@@ -371,18 +371,10 @@ pub struct OgcFilter {
 }
 
 impl OgcFilter {
-    pub fn parse(filter_xml: &str) -> Result<Self, String> {
-        let node = XmlNode::parse(filter_xml)?;
-        let root = if node.name.eq_ignore_ascii_case("filter") {
-            node.children
-                .iter()
-                .find(|child| !child.name.starts_with('#'))
-                .ok_or_else(|| "Filter element did not contain an operation".to_string())?
-        } else {
-            &node
-        };
+    pub fn parse(filter_expr: &str) -> Result<Self, String> {
+        let mut parser = FilterParser::new(filter_expr);
         Ok(Self {
-            root: OgcOperation::from_xml(root, CompareType::Auto)?,
+            root: parser.parse_root()?,
             pair_delimiter: DEFAULT_PAIR_DELIMITER.to_string(),
             value_delimiter: DEFAULT_VALUE_DELIMITER.to_string(),
             colf_name: None,
@@ -404,11 +396,6 @@ impl OgcFilter {
     pub fn accept_record(&self, record: &BTreeMap<String, String>) -> bool {
         self.root.execute(record)
     }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum CompareType {
-    Auto,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -439,53 +426,6 @@ enum OgcOperation {
 }
 
 impl OgcOperation {
-    fn from_xml(node: &XmlNode, compare_type: CompareType) -> Result<Self, String> {
-        match node.name.as_str() {
-            "And" => Ok(Self::And(parse_children(node, compare_type)?)),
-            "Or" => Ok(Self::Or(parse_children(node, compare_type)?)),
-            "Not" => Ok(Self::Not(parse_children(node, compare_type)?)),
-            "PropertyIsEqualTo" => Ok(Self::Equal(Comparison::from_xml(node, compare_type)?)),
-            "PropertyIsNotEqualTo" => Ok(Self::NotEqual(Comparison::from_xml(node, compare_type)?)),
-            "PropertyIsGreaterThan" => {
-                Ok(Self::GreaterThan(Comparison::from_xml(node, compare_type)?))
-            }
-            "PropertyIsGreaterThanOrEqualTo" => Ok(Self::GreaterThanOrEqual(Comparison::from_xml(
-                node,
-                compare_type,
-            )?)),
-            "PropertyIsLessThan" => Ok(Self::LessThan(Comparison::from_xml(node, compare_type)?)),
-            "PropertyIsLessThanOrEqualTo" => Ok(Self::LessThanOrEqual(Comparison::from_xml(
-                node,
-                compare_type,
-            )?)),
-            "PropertyIsBetween" => {
-                let name = text_of(node, "PropertyName").unwrap_or_default();
-                let lower = text_of(node, "LowerBoundary").unwrap_or_default();
-                let upper = text_of(node, "UpperBoundary").unwrap_or_default();
-                let numeric = lower.parse::<f64>().ok().zip(upper.parse::<f64>().ok());
-                Ok(Self::Between {
-                    name,
-                    lower,
-                    upper,
-                    numeric,
-                })
-            }
-            "PropertyIsLike" => {
-                let name = text_of(node, "PropertyName").unwrap_or_default();
-                let literal = text_of(node, "Literal").unwrap_or_default();
-                Ok(Self::Like {
-                    name,
-                    pattern: LikePattern::from_ogc(&literal),
-                })
-            }
-            "PropertyIsNull" => Ok(Self::Null {
-                name: text_of(node, "PropertyName").unwrap_or_else(|| node.text.clone()),
-            }),
-            "BBOX" => Ok(Self::BBox(BBox::from_xml(node)?)),
-            other => Err(format!("Operation not supported: {other}")),
-        }
-    }
-
     fn execute(&self, row: &BTreeMap<String, String>) -> bool {
         match self {
             Self::And(children) => children.iter().all(|child| child.execute(row)),
@@ -524,13 +464,6 @@ impl OgcOperation {
     }
 }
 
-fn parse_children(node: &XmlNode, compare_type: CompareType) -> Result<Vec<OgcOperation>, String> {
-    node.children
-        .iter()
-        .map(|child| OgcOperation::from_xml(child, compare_type))
-        .collect()
-}
-
 #[derive(Clone, Debug, PartialEq)]
 struct Comparison {
     name: String,
@@ -539,15 +472,13 @@ struct Comparison {
 }
 
 impl Comparison {
-    fn from_xml(node: &XmlNode, _compare_type: CompareType) -> Result<Self, String> {
-        let name = text_of(node, "PropertyName").unwrap_or_default();
-        let literal = text_of(node, "Literal").unwrap_or_default();
+    fn new(name: String, literal: String) -> Self {
         let literal_num = parse_numeric(&literal);
-        Ok(Self {
+        Self {
             name,
             literal,
             literal_num,
-        })
+        }
     }
 
     fn compare(
@@ -619,48 +550,13 @@ struct BBox {
 }
 
 impl BBox {
-    fn from_xml(node: &XmlNode) -> Result<Self, String> {
-        let envelope = node
-            .children
-            .iter()
-            .find(|child| child.name.eq_ignore_ascii_case("gml:Envelope"))
-            .ok_or_else(|| "BBOX missing gml:Envelope".to_string())?;
-        let mut lon_lat = Vec::new();
-        for child in &envelope.children {
-            let parts = child
-                .text
-                .split_whitespace()
-                .filter_map(|part| part.parse::<f64>().ok())
-                .collect::<Vec<_>>();
-            if parts.len() == 2 {
-                lon_lat.push((parts[0], parts[1]));
-            }
-        }
-        if lon_lat.len() < 2 {
-            return Err("BBOX envelope missing corners".to_string());
-        }
-        let min_lon = lon_lat
-            .iter()
-            .map(|(lon, _)| *lon)
-            .fold(f64::INFINITY, f64::min);
-        let max_lon = lon_lat
-            .iter()
-            .map(|(lon, _)| *lon)
-            .fold(f64::NEG_INFINITY, f64::max);
-        let min_lat = lon_lat
-            .iter()
-            .map(|(_, lat)| *lat)
-            .fold(f64::INFINITY, f64::min);
-        let max_lat = lon_lat
-            .iter()
-            .map(|(_, lat)| *lat)
-            .fold(f64::NEG_INFINITY, f64::max);
-        Ok(Self {
+    fn new(min_lon: f64, min_lat: f64, max_lon: f64, max_lat: f64) -> Self {
+        Self {
             min_lon,
             min_lat,
             max_lon,
             max_lat,
-        })
+        }
     }
 
     fn contains_row(&self, row: &BTreeMap<String, String>) -> bool {
@@ -690,60 +586,150 @@ fn first_degree(row: &BTreeMap<String, String>, names: &[&str]) -> Option<f64> {
     })
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct XmlNode {
-    name: String,
-    text: String,
-    children: Vec<XmlNode>,
-}
-
-impl XmlNode {
-    fn parse(input: &str) -> Result<Self, String> {
-        let mut parser = XmlParser { input, cursor: 0 };
-        parser.parse_node()
-    }
-}
-
-struct XmlParser<'a> {
+struct FilterParser<'a> {
     input: &'a str,
     cursor: usize,
 }
 
-impl XmlParser<'_> {
-    fn parse_node(&mut self) -> Result<XmlNode, String> {
-        self.skip_ws();
-        self.expect('<')?;
-        let raw_name = self.read_until(&['>', ' '])?;
-        while self.peek() != Some('>') {
-            self.bump();
-        }
-        self.expect('>')?;
+impl<'a> FilterParser<'a> {
+    fn new(input: &'a str) -> Self {
+        Self { input, cursor: 0 }
+    }
 
-        let name = raw_name.split_whitespace().next().unwrap_or("").to_string();
-        let mut text = String::new();
+    fn parse_root(&mut self) -> Result<OgcOperation, String> {
+        let op = self.parse_operation()?;
+        self.skip_ws();
+        if self.cursor != self.input.len() {
+            return Err("Unexpected trailing filter input".to_string());
+        }
+        Ok(op)
+    }
+
+    fn parse_operation(&mut self) -> Result<OgcOperation, String> {
+        self.skip_ws();
+        let name = self.read_name()?;
+        self.skip_ws();
+        self.expect('(')?;
+        let op = match name.to_ascii_lowercase().as_str() {
+            "and" => OgcOperation::And(self.parse_operation_list()?),
+            "or" => OgcOperation::Or(self.parse_operation_list()?),
+            "not" => OgcOperation::Not(vec![self.parse_operation()?]),
+            "eq" => OgcOperation::Equal(self.parse_comparison()?),
+            "ne" => OgcOperation::NotEqual(self.parse_comparison()?),
+            "gt" => OgcOperation::GreaterThan(self.parse_comparison()?),
+            "gte" => OgcOperation::GreaterThanOrEqual(self.parse_comparison()?),
+            "lt" => OgcOperation::LessThan(self.parse_comparison()?),
+            "lte" => OgcOperation::LessThanOrEqual(self.parse_comparison()?),
+            "between" => {
+                let name = self.parse_value()?;
+                self.expect(',')?;
+                let lower = self.parse_value()?;
+                self.expect(',')?;
+                let upper = self.parse_value()?;
+                let numeric = lower.parse::<f64>().ok().zip(upper.parse::<f64>().ok());
+                OgcOperation::Between {
+                    name,
+                    lower,
+                    upper,
+                    numeric,
+                }
+            }
+            "like" => {
+                let name = self.parse_value()?;
+                self.expect(',')?;
+                let literal = self.parse_value()?;
+                OgcOperation::Like {
+                    name,
+                    pattern: LikePattern::from_ogc(&literal),
+                }
+            }
+            "is_null" => OgcOperation::Null {
+                name: self.parse_value()?,
+            },
+            "bbox" => {
+                let min_lon = self.parse_f64_arg()?;
+                self.expect(',')?;
+                let min_lat = self.parse_f64_arg()?;
+                self.expect(',')?;
+                let max_lon = self.parse_f64_arg()?;
+                self.expect(',')?;
+                let max_lat = self.parse_f64_arg()?;
+                OgcOperation::BBox(BBox::new(min_lon, min_lat, max_lon, max_lat))
+            }
+            other => return Err(format!("Operation not supported: {other}")),
+        };
+        self.expect(')')?;
+        Ok(op)
+    }
+
+    fn parse_operation_list(&mut self) -> Result<Vec<OgcOperation>, String> {
         let mut children = Vec::new();
         loop {
-            self.skip_ws();
-            if self.starts_with("</") {
-                self.cursor += 2;
-                let close = self.read_until(&['>'])?;
-                self.expect('>')?;
-                if close != name {
-                    return Err(format!("Expected closing tag for {name}, got {close}"));
-                }
+            children.push(self.parse_operation()?);
+            if self.peek_after_ws() == Some(')') {
                 break;
             }
-            if self.peek() == Some('<') {
-                children.push(self.parse_node()?);
+            self.expect(',')?;
+        }
+        Ok(children)
+    }
+
+    fn parse_comparison(&mut self) -> Result<Comparison, String> {
+        let name = self.parse_value()?;
+        self.expect(',')?;
+        let literal = self.parse_value()?;
+        Ok(Comparison::new(name, literal))
+    }
+
+    fn parse_f64_arg(&mut self) -> Result<f64, String> {
+        self.parse_value()?
+            .parse::<f64>()
+            .map_err(|error| error.to_string())
+    }
+
+    fn parse_value(&mut self) -> Result<String, String> {
+        self.skip_ws();
+        if self.peek() == Some('"') {
+            self.bump();
+            let mut value = String::new();
+            while let Some(ch) = self.peek() {
+                self.bump();
+                if ch == '"' {
+                    return Ok(value);
+                }
+                value.push(ch);
+            }
+            return Err("Unterminated quoted filter value".to_string());
+        }
+        let start = self.cursor;
+        while let Some(ch) = self.peek() {
+            if ch == ',' || ch == ')' {
+                break;
+            }
+            self.bump();
+        }
+        let value = self.input[start..self.cursor].trim();
+        if value.is_empty() {
+            Err("Expected filter value".to_string())
+        } else {
+            Ok(value.to_string())
+        }
+    }
+
+    fn read_name(&mut self) -> Result<String, String> {
+        let start = self.cursor;
+        while let Some(ch) = self.peek() {
+            if ch.is_ascii_alphanumeric() || ch == '_' {
+                self.bump();
             } else {
-                text.push_str(&self.read_until(&['<'])?);
+                break;
             }
         }
-        Ok(XmlNode {
-            name,
-            text: text.trim().to_string(),
-            children,
-        })
+        if start == self.cursor {
+            Err("Expected filter operation".to_string())
+        } else {
+            Ok(self.input[start..self.cursor].to_string())
+        }
     }
 
     fn skip_ws(&mut self) {
@@ -752,28 +738,19 @@ impl XmlParser<'_> {
         }
     }
 
-    fn starts_with(&self, prefix: &str) -> bool {
-        self.input[self.cursor..].starts_with(prefix)
-    }
-
-    fn read_until(&mut self, stops: &[char]) -> Result<String, String> {
-        let start = self.cursor;
-        while let Some(ch) = self.peek() {
-            if stops.contains(&ch) {
-                return Ok(self.input[start..self.cursor].trim().to_string());
-            }
-            self.bump();
-        }
-        Err("Unexpected end of XML".to_string())
+    fn peek_after_ws(&mut self) -> Option<char> {
+        self.skip_ws();
+        self.peek()
     }
 
     fn expect(&mut self, expected: char) -> Result<(), String> {
+        self.skip_ws();
         match self.peek() {
             Some(ch) if ch == expected => {
                 self.bump();
                 Ok(())
             }
-            _ => Err(format!("Expected XML char {expected}")),
+            _ => Err(format!("Expected filter char {expected}")),
         }
     }
 
@@ -786,19 +763,6 @@ impl XmlParser<'_> {
             self.cursor += ch.len_utf8();
         }
     }
-}
-
-fn text_of(node: &XmlNode, name: &str) -> Option<String> {
-    node.children
-        .iter()
-        .find(|child| child.name.eq_ignore_ascii_case(name))
-        .map(|child| {
-            if child.text.is_empty() && !child.children.is_empty() {
-                child.children[0].text.clone()
-            } else {
-                child.text.clone()
-            }
-        })
 }
 
 pub fn calculate_end_location(
@@ -980,7 +944,7 @@ impl DateHashModShardValueGenerator {
         let date = format_yyyymmdd(date_millis);
         match object {
             Some(object) => {
-                let hash_mod = java_string_hash_code(object) % self.base_mod;
+                let hash_mod = stable_utf16_hash(object) % self.base_mod;
                 format!("{}_{}", date, hash_mod.abs())
             }
             None => date,
@@ -988,7 +952,7 @@ impl DateHashModShardValueGenerator {
     }
 }
 
-fn java_string_hash_code(value: &str) -> i32 {
+fn stable_utf16_hash(value: &str) -> i32 {
     let mut hash = 0i32;
     for unit in value.encode_utf16() {
         hash = hash.wrapping_mul(31).wrapping_add(i32::from(unit));

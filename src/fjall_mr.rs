@@ -7,18 +7,18 @@ use crate::indexing::{
 };
 use crate::resolver::triple::{TableLayout, TripleContext, TripleRow};
 
-pub const JOB_NAME_PROP: &str = "mapred.job.name";
+pub const JOB_NAME_PROP: &str = "omrya.job.name";
 pub const AC_USERNAME_PROP: &str = "ac.username";
 pub const AC_PWD_PROP: &str = "ac.pwd";
-pub const AC_ZK_PROP: &str = "ac.zk";
+pub const AC_COORDINATOR_PROP: &str = "ac.coordinator";
 pub const AC_INSTANCE_PROP: &str = "ac.instance";
 pub const AC_TTL_PROP: &str = "ac.ttl";
 pub const AC_TABLE_PROP: &str = "ac.table";
 pub const AC_AUTH_PROP: &str = "ac.auth";
 pub const AC_CV_PROP: &str = "ac.cv";
 pub const AC_MOCK_PROP: &str = "ac.mock";
-pub const AC_HDFS_INPUT_PROP: &str = "ac.hdfsinput";
-pub const HADOOP_IO_SORT_MB: &str = "io.sort.mb";
+pub const BATCH_INPUT_PROP: &str = "batch.input";
+pub const BATCH_SORT_MB: &str = "io.sort.mb";
 pub const FORMAT_PROP: &str = "rdf.format";
 pub const INPUT_PATH: &str = "input";
 pub const NAMED_GRAPH_PROP: &str = "rdf.graph";
@@ -29,19 +29,14 @@ pub const TBL_SPO_SUFFIX: &str = "spo";
 pub const TBL_PO_SUFFIX: &str = "po";
 pub const TBL_OSP_SUFFIX: &str = "osp";
 
-pub const MRUNIT_GROUP_ID: &str = "org.apache.mrunit";
-pub const MRUNIT_ARTIFACT_ID: &str = "mrunit";
-pub const MRUNIT_CLASSIFIER: &str = "hadoop2";
-pub const MRUNIT_VERSION: &str = "1.1.0";
-pub const MRUNIT_SCOPE: &str = "test";
-pub const RYA_MAPREDUCE_PACKAGE: &str = "mvm.rya.fjall.mr";
-pub const LEGACY_MR_UTILS_PACKAGE: &str = "mvm.rya.fjall.mr.utils";
-pub const RYA_INPUT_FORMAT_CLASS: &str = "mvm.rya.fjall.mr.RyaInputFormat";
-pub const RYA_OUTPUT_FORMAT_CLASS: &str = "mvm.rya.fjall.mr.RyaOutputFormat";
-pub const RDF_FILE_INPUT_FORMAT_CLASS: &str = "mvm.rya.fjall.mr.RdfFileInputFormat";
-pub const RDF_FILE_INPUT_TOOL_CLASS: &str = "mvm.rya.fjall.mr.tools.RdfFileInputTool";
-pub const FJALL_RDF_COUNT_TOOL_CLASS: &str = "mvm.rya.fjall.mr.tools.FjallRdfCountTool";
-pub const UPGRADE_322_TOOL_CLASS: &str = "mvm.rya.fjall.mr.tools.Upgrade322Tool";
+pub const RYA_MAPREDUCE_PACKAGE: &str = "omrya::fjall_mr";
+pub const MR_UTILS_PACKAGE: &str = "omrya::fjall_mr::utils";
+pub const RYA_INPUT_FORMAT_ID: &str = "omrya::fjall_mr::input_format";
+pub const RYA_OUTPUT_FORMAT_ID: &str = "omrya::fjall_mr::output_format";
+pub const RDF_FILE_INPUT_FORMAT_ID: &str = "omrya::fjall_mr::rdf_file_input";
+pub const RDF_FILE_INPUT_TOOL_ID: &str = "omrya::fjall_mr::tools::rdf_file_input";
+pub const FJALL_RDF_COUNT_TOOL_ID: &str = "omrya::fjall_mr::tools::rdf_count";
+pub const UPGRADE_322_TOOL_ID: &str = "omrya::fjall_mr::tools::upgrade_322";
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct MrConfiguration {
@@ -106,7 +101,6 @@ pub enum RdfFormat {
     NTriples,
     NQuads,
     Trig,
-    RdfXml,
 }
 
 impl RdfFormat {
@@ -115,7 +109,6 @@ impl RdfFormat {
             Self::NTriples => "N-Triples",
             Self::NQuads => "N-Quads",
             Self::Trig => "TriG",
-            Self::RdfXml => "RDF/XML",
         }
     }
 
@@ -124,7 +117,6 @@ impl RdfFormat {
             "N-Triples" | "NTRIPLES" | "NTRIPLES_FORMAT" => Some(Self::NTriples),
             "N-Quads" | "NQUADS" => Some(Self::NQuads),
             "TriG" | "TRIG" => Some(Self::Trig),
-            "RDF/XML" | "RDFXML" => Some(Self::RdfXml),
             _ => None,
         }
     }
@@ -159,9 +151,6 @@ impl RdfFileInputFormat {
             RdfFormat::NTriples => parse_ntriples(input)?,
             RdfFormat::Trig => parse_trig(input)?,
             RdfFormat::NQuads => parse_nquads(input)?,
-            RdfFormat::RdfXml => {
-                return Err("RDF/XML parsing is not available in this fixture".to_string());
-            }
         };
         let context = TripleContext::new(false);
         Ok(statements
@@ -416,11 +405,11 @@ impl RyaStatementWritable {
         self.statement = Some(statement);
     }
 
-    pub fn java_compare_to(&self, other: &Self) -> i32 {
-        match (self.rya_statement(), other.rya_statement()) {
-            (Some(left), Some(right)) if left == right => 0,
-            _ => -1,
-        }
+    pub fn has_same_statement(&self, other: &Self) -> bool {
+        matches!(
+            (self.rya_statement(), other.rya_statement()),
+            (Some(left), Some(right)) if left == right
+        )
     }
 
     pub fn write_to_vec(&self) -> Result<Vec<u8>, String> {

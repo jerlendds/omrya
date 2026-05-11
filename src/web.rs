@@ -9,8 +9,6 @@ pub const QUERY_AUTH_PARAM: &str = "query.auth";
 pub const QUERY_RESULT_FORMAT_PARAM: &str = "query.resultformat";
 pub const QUERY_INFER_PARAM: &str = "query.infer";
 pub const APPLICATION_JSON: &str = "application/json";
-pub const SPARQL_RESULTS_XML: &str = "application/sparql-results+xml";
-pub const TEXT_XML: &str = "text/xml";
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct SecurityProviderImpl;
@@ -138,6 +136,11 @@ impl RdfController {
             .into_iter()
             .collect::<BTreeSet<_>>();
         let temporal = TemporalQueryOptions::from_request(&request)?;
+        if let Some(format) = request.result_format.as_deref() {
+            if !format.eq_ignore_ascii_case("json") && !format.eq_ignore_ascii_case("count") {
+                return Err(format!("Unsupported query result format: {format}"));
+            }
+        }
         if request
             .result_format
             .as_deref()
@@ -149,18 +152,12 @@ impl RdfController {
                 sparql_rows_json(&rows),
             ));
         }
-        let content_type = if request
-            .result_format
-            .as_deref()
-            .is_some_and(|format| format.eq_ignore_ascii_case("xml"))
-        {
-            TEXT_XML
-        } else {
-            SPARQL_RESULTS_XML
-        };
 
         let count = self.evaluate_select_count(query, auths, &temporal)?;
-        Ok(WebResponse::ok(Some(content_type), sparql_count_xml(count)))
+        Ok(WebResponse::ok(
+            Some(APPLICATION_JSON),
+            sparql_count_json(count),
+        ))
     }
 
     pub fn load_rdf(
@@ -309,17 +306,15 @@ pub fn sparql_query_redirect_url(
     )
 }
 
-pub fn controller_root_imports_security_provider(root_xml: &str) -> bool {
-    root_xml.contains(r#"<import resource="controllerIntegrationTest-security.xml"/>"#)
-        || root_xml.contains(r#"<import resource="controllerIntegrationTest-security.xml" />"#)
+pub fn controller_config_enables_security_provider(root_toml: &str) -> bool {
+    root_toml.contains(r#"security_config = "controller-security.toml""#)
+        || root_toml.contains(r#"security_config="controller-security.toml""#)
 }
 
-pub fn security_context_declares_provider(security_xml: &str) -> bool {
-    security_xml
-        .contains(r#"<bean id="provider" class="mvm.cloud.rdf.web.sail.SecurityProviderImpl"/>"#)
-        || security_xml.contains(
-            r#"<bean id="provider" class="mvm.cloud.rdf.web.sail.SecurityProviderImpl" />"#,
-        )
+pub fn security_config_declares_provider(security_toml: &str) -> bool {
+    security_toml
+        .contains(r#"provider_path = "omrya::web::SecurityProviderImpl""#)
+        || security_toml.contains(r#"provider_path="omrya::web::SecurityProviderImpl""#)
 }
 
 fn subjects_for(
@@ -929,10 +924,8 @@ fn parse_auths(auth: Option<&str>) -> BTreeSet<String> {
         .collect()
 }
 
-fn sparql_count_xml(count: usize) -> String {
-    format!(
-        r#"<?xml version="1.0" encoding="UTF-8"?><sparql xmlns="http://www.w3.org/2005/sparql-results#"><head><variable name="c"/></head><results><result><binding name="c"><literal datatype="http://www.w3.org/2001/XMLSchema#integer">{count}</literal></binding></result></results></sparql>"#
-    )
+fn sparql_count_json(count: usize) -> String {
+    format!(r#"{{"count":{count}}}"#)
 }
 
 fn sparql_rows_json(rows: &[RyaStatement]) -> String {

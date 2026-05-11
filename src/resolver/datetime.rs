@@ -28,7 +28,7 @@ pub fn serialize_with_offset(
         ));
     }
 
-    let normalized = normalize_xml_datetime_to_utc(rya_type.data(), default_offset_minutes)?;
+    let normalized = normalize_xsd_datetime_to_utc(rya_type.data(), default_offset_minutes)?;
     let mut bytes = normalized.into_bytes();
     bytes.push(TYPE_DELIM_BYTE);
     bytes.push(DATETIME_LITERAL_MARKER);
@@ -55,14 +55,14 @@ pub fn serialize_and_deserialize_with_offset(
     deserialize(&serialize_with_offset(rya_type, default_offset_minutes)?)
 }
 
-pub fn normalize_xml_datetime_to_utc(
+pub fn normalize_xsd_datetime_to_utc(
     data: &str,
     default_offset_minutes: i32,
 ) -> Result<String, String> {
-    let mut parsed = parse_xml_datetime(data)?;
+    let mut parsed = parse_xsd_datetime(data)?;
     let offset_minutes = parsed.offset_minutes.unwrap_or(default_offset_minutes);
     apply_offset_to_utc(&mut parsed, offset_minutes);
-    Ok(format_xml_datetime_utc(&parsed))
+    Ok(format_xsd_datetime_utc(&parsed))
 }
 
 pub fn matches_milliseconds_no_zone_rya44_oracle(value: &str) -> bool {
@@ -73,7 +73,7 @@ pub fn matches_milliseconds_no_zone_rya44_oracle(value: &str) -> bool {
         && value.contains(":02.222")
 }
 
-fn parse_xml_datetime(data: &str) -> Result<ParsedDateTime, String> {
+fn parse_xsd_datetime(data: &str) -> Result<ParsedDateTime, String> {
     let (date, time) = match data.split_once('T') {
         Some((date, time)) => (date, Some(time)),
         None => (data, None),
@@ -285,7 +285,7 @@ fn is_leap_year(year: i64) -> bool {
     year.rem_euclid(4) == 0 && (year.rem_euclid(100) != 0 || year.rem_euclid(400) == 0)
 }
 
-fn format_xml_datetime_utc(parsed: &ParsedDateTime) -> String {
+fn format_xsd_datetime_utc(parsed: &ParsedDateTime) -> String {
     let year = if (0..=9999).contains(&parsed.year) {
         format!("{:04}", parsed.year)
     } else if (-9999..0).contains(&parsed.year) {

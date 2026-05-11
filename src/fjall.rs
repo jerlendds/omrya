@@ -4,7 +4,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::domain::{RyaStatement, RyaType, XSD_DATE, XSD_DATETIME};
 use crate::query::{InMemoryRyaDao, QueryOptions, StatementPattern};
-use crate::resolver::datetime::normalize_xml_datetime_to_utc;
+use crate::resolver::datetime::normalize_xsd_datetime_to_utc;
 use crate::resolver::serialize_type;
 use crate::resolver::triple::{
     TableLayout, TripleContext, TriplePatternStrategyKind, TripleRowRegex,
@@ -21,7 +21,7 @@ pub const CONF_FJALL_DATA_DIR: &str = "fjall.data.dir";
 pub const ITERATOR_SETTINGS_SIZE: &str = "ac.iterators.size";
 pub const ITERATOR_SETTINGS_BASE: &str = "ac.iterators.%d.";
 pub const ITERATOR_SETTINGS_NAME: &str = "ac.iterators.%d.name";
-pub const ITERATOR_SETTINGS_CLASS: &str = "ac.iterators.%d.iteratorClass";
+pub const ITERATOR_SETTINGS_KIND: &str = "ac.iterators.%d.iterator";
 pub const ITERATOR_SETTINGS_PRIORITY: &str = "ac.iterators.%d.priority";
 pub const ITERATOR_SETTINGS_OPTIONS_SIZE: &str = "ac.iterators.%d.optionsSize";
 pub const ITERATOR_SETTINGS_OPTIONS_KEY: &str = "ac.iterators.%d.option.%d.name";
@@ -30,12 +30,11 @@ pub const CONF_TBL_PREFIX: &str = "rdf.tablePrefix";
 pub const CONF_QUERY_AUTH: &str = "query.auth";
 pub const CONF_CV: &str = "conf.cv";
 pub const CONF_INFER: &str = "query.infer";
-pub const VERSION_SUBJECT_RYA: &str = "urn:org.apache.rya/version";
-pub const VERSION_PREDICATE_RYA: &str = "urn:org.apache.rya/versionPredicate";
+pub const VERSION_SUBJECT_RYA: &str = "urn:omrya/version";
+pub const VERSION_PREDICATE_RYA: &str = "urn:omrya/versionPredicate";
 pub const VERSION_RYA: &str = "3.2.10-SNAPSHOT";
 
-pub const FIRST_ENTRY_IN_ROW_ITERATOR_CLASS: &str =
-    "org.apache.fjall.core.iterators.FirstEntryInRowIterator";
+pub const FIRST_ENTRY_IN_ROW_ITERATOR_ID: &str = "omrya::fjall::iterators::first_entry_in_row";
 pub const DEFAULT_CONNECTOR_ID: &str = "in-memory-fjall-connector";
 pub const DEFAULT_MULTI_TABLE_BATCH_WRITER_ID: &str = "in-memory-multi-table-batch-writer";
 pub const FJALL_DATETIME_DEFAULT_OFFSET_MINUTES: i32 = 0;
@@ -250,19 +249,19 @@ pub enum BuildFixIndexerKind {
 }
 
 impl BuildFixIndexerKind {
-    pub fn java_class_name(&self) -> &'static str {
+    pub fn registry_name(&self) -> &'static str {
         match self {
-            Self::NullFreeText => "mvm.rya.fjall.mr.NullFreeTextIndexer",
-            Self::NullGeo => "mvm.rya.fjall.mr.NullGeoIndexer",
-            Self::NullTemporal => "mvm.rya.fjall.mr.NullTemporalIndexer",
-            Self::EntityCentric => "mvm.rya.indexing.fjall.entity.EntityCentricIndex",
-            Self::FreeText => "mvm.rya.indexing.fjall.freetext.FjallFreeTextIndexer",
-            Self::GeoMesaGeo => "mvm.rya.indexing.fjall.geo.GeoMesaGeoIndexer",
-            Self::Temporal => "mvm.rya.indexing.fjall.temporal.FjallTemporalIndexer",
+            Self::NullFreeText => "omrya::fjall::indexers::null_free_text",
+            Self::NullGeo => "omrya::fjall::indexers::null_geo",
+            Self::NullTemporal => "omrya::fjall::indexers::null_temporal",
+            Self::EntityCentric => "omrya::fjall::indexers::entity_centric",
+            Self::FreeText => "omrya::fjall::indexers::free_text",
+            Self::GeoMesaGeo => "omrya::fjall::indexers::geomesa_geo",
+            Self::Temporal => "omrya::fjall::indexers::temporal",
         }
     }
 
-    pub fn all_commit_22_classes() -> [Self; 7] {
+    pub fn all_indexer_kinds() -> [Self; 7] {
         [
             Self::NullFreeText,
             Self::NullGeo,
@@ -372,7 +371,7 @@ impl FjallIndexer for BuildFixFjallIndexer {
 pub struct IteratorSetting {
     pub priority: i32,
     pub name: String,
-    pub iterator_class: String,
+    pub iterator_id: String,
     pub options: BTreeMap<String, String>,
 }
 
@@ -380,13 +379,13 @@ impl IteratorSetting {
     pub fn new(
         priority: i32,
         name: impl Into<String>,
-        iterator_class: impl Into<String>,
+        iterator_id: impl Into<String>,
         options: impl IntoIterator<Item = (impl Into<String>, impl Into<String>)>,
     ) -> Self {
         Self {
             priority,
             name: name.into(),
-            iterator_class: iterator_class.into(),
+            iterator_id: iterator_id.into(),
             options: options
                 .into_iter()
                 .map(|(key, value)| (key.into(), value.into()))
@@ -398,15 +397,13 @@ impl IteratorSetting {
         Self::new(
             priority,
             "FirstEntryInRowIterator",
-            FIRST_ENTRY_IN_ROW_ITERATOR_CLASS,
+            FIRST_ENTRY_IN_ROW_ITERATOR_ID,
             std::iter::empty::<(String, String)>(),
         )
     }
 
     fn is_first_entry_in_row(&self) -> bool {
-        self.iterator_class == FIRST_ENTRY_IN_ROW_ITERATOR_CLASS
-            || self.iterator_class.ends_with(".FirstEntryInRowIterator")
-            || self.iterator_class == "FirstEntryInRowIterator"
+        self.iterator_id == FIRST_ENTRY_IN_ROW_ITERATOR_ID || self.iterator_id == "first_entry_in_row"
     }
 }
 
@@ -525,8 +522,8 @@ impl FjallRdfConfiguration {
                 &iterator.name,
             );
             self.set(
-                iterator_key(ITERATOR_SETTINGS_CLASS, i, None),
-                &iterator.iterator_class,
+                iterator_key(ITERATOR_SETTINGS_KIND, i, None),
+                &iterator.iterator_id,
             );
             self.set(
                 iterator_key(ITERATOR_SETTINGS_PRIORITY, i, None),
@@ -558,8 +555,8 @@ impl FjallRdfConfiguration {
                 .get(&iterator_key(ITERATOR_SETTINGS_NAME, i, None))
                 .ok_or_else(|| format!("Missing iterator name at index {i}"))?
                 .to_string();
-            let iterator_class = self
-                .get(&iterator_key(ITERATOR_SETTINGS_CLASS, i, None))
+            let iterator_id = self
+                .get(&iterator_key(ITERATOR_SETTINGS_KIND, i, None))
                 .ok_or_else(|| format!("Missing iterator class at index {i}"))?
                 .to_string();
             let priority = self
@@ -587,7 +584,7 @@ impl FjallRdfConfiguration {
             settings.push(IteratorSetting {
                 priority,
                 name,
-                iterator_class,
+                iterator_id,
                 options,
             });
         }
@@ -1263,7 +1260,7 @@ pub fn apply_additional_iterators(
         } else {
             return Err(format!(
                 "Unsupported in-memory Fjall iterator: {}",
-                iterator.iterator_class
+                iterator.iterator_id
             ));
         }
     }
@@ -1326,7 +1323,7 @@ fn normalize_type_for_fjall(value: &RyaType) -> Result<RyaType, String> {
     match value.data_type() {
         Some(XSD_DATETIME | XSD_DATE) => Ok(RyaType::custom(
             XSD_DATETIME,
-            normalize_xml_datetime_to_utc(value.data(), FJALL_DATETIME_DEFAULT_OFFSET_MINUTES)?,
+            normalize_xsd_datetime_to_utc(value.data(), FJALL_DATETIME_DEFAULT_OFFSET_MINUTES)?,
         )),
         _ => Ok(value.clone()),
     }

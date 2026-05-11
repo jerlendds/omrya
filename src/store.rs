@@ -6,42 +6,45 @@ use crate::inference::InferenceEngine;
 use crate::instance::{RyaDetailsRepository, RyaDetailsToConfiguration};
 use crate::query::InMemoryRyaDao;
 
-pub const LEGACY_CLOUDBASE_STORE_CONFIG_NAMESPACE: &str =
-    "http://rya.apache.org/config/store/cloudbase#";
-pub const CLOUDBASE_SERVER: &str = "http://rya.apache.org/config/store/cloudbase#server";
-pub const CLOUDBASE_PORT: &str = "http://rya.apache.org/config/store/cloudbase#port";
-pub const CLOUDBASE_INSTANCE: &str = "http://rya.apache.org/config/store/cloudbase#instance";
-pub const CLOUDBASE_USER: &str = "http://rya.apache.org/config/store/cloudbase#user";
-pub const CLOUDBASE_PASSWORD: &str = "http://rya.apache.org/config/store/cloudbase#password";
-pub const RYA_FJALL_STORE_CONFIG_NAMESPACE: &str = "http://rya.apache.org/RyaFjallStore/Config#";
+pub const LEGACY_FJALL_STORE_CONFIG_NAMESPACE: &str =
+    "http://omrya.local/config/store/fjall#";
+pub const FJALL_SERVER: &str = "http://omrya.local/config/store/fjall#server";
+pub const FJALL_PORT: &str = "http://omrya.local/config/store/fjall#port";
+pub const FJALL_INSTANCE: &str = "http://omrya.local/config/store/fjall#instance";
+pub const FJALL_USER: &str = "http://omrya.local/config/store/fjall#user";
+pub const FJALL_PASSWORD: &str = "http://omrya.local/config/store/fjall#password";
+pub const RYA_FJALL_STORE_CONFIG_NAMESPACE: &str = "http://omrya.local/RyaFjallStore/Config#";
 pub const RYA_FJALL_STORE_TYPE: &str = "rya:FjallStore";
-pub const RYA_FJALL_USER: &str = "http://rya.apache.org/RyaFjallStore/Config#user";
-pub const RYA_FJALL_PASSWORD: &str = "http://rya.apache.org/RyaFjallStore/Config#password";
-pub const RYA_FJALL_INSTANCE: &str = "http://rya.apache.org/RyaFjallStore/Config#instance";
-pub const RYA_FJALL_ZOOKEEPERS: &str = "http://rya.apache.org/RyaFjallStore/Config#zookeepers";
-pub const RYA_FJALL_IS_MOCK: &str = "http://rya.apache.org/RyaFjallStore/Config#isMock";
+pub const RYA_FJALL_USER: &str = "http://omrya.local/RyaFjallStore/Config#user";
+pub const RYA_FJALL_PASSWORD: &str = "http://omrya.local/RyaFjallStore/Config#password";
+pub const RYA_FJALL_INSTANCE: &str = "http://omrya.local/RyaFjallStore/Config#instance";
+pub const RYA_FJALL_COORDINATORS: &str = "http://omrya.local/RyaFjallStore/Config#coordinators";
+pub const RYA_FJALL_IS_MOCK: &str = "http://omrya.local/RyaFjallStore/Config#isMock";
 pub const RYA_FJALL_STORE_FACTORY_SERVICE: &str = "omrya::store::FjallStoreFactory";
 pub const RYA_STORE_FACTORY_CLASS: &str = "omrya::store::RyaStoreFactory";
-pub const REMOVED_LEGACY_STORE_TYPE: &str = "legacy:RdfCloudTripleStore";
-pub const RYA_FJALL_STORE_TEMPLATE_PATH: &str = "RyaFjallStore.ttl";
+pub const REMOVED_LEGACY_STORE_TYPE: &str = "removed:cloud-triple-store";
+pub const RYA_FJALL_STORE_TEMPLATE_PATH: &str = "RyaFjallStore.jsonld";
 pub const RYA_FJALL_STORE_SERVICE_PATH: &str = "src/store.rs::RYA_FJALL_STORE_FACTORY_SERVICE";
 pub const CONF_TABLE_PREFIX: &str = "rya.tableprefix";
 pub const CONF_INFER: &str = "query.infer";
-pub const CONF_FJALL_USER: &str = "sc.cloudbase.username";
-pub const CONF_FJALL_PASSWORD: &str = "sc.cloudbase.password";
+pub const CONF_FJALL_USER: &str = "sc.fjall.username";
+pub const CONF_FJALL_PASSWORD: &str = "sc.fjall.password";
 
-pub const RYA_FJALL_STORE_TEMPLATE: &str = r#"@prefix rya: <http://rya.apache.org/config/store#>.
-@prefix rac: <http://rya.apache.org/RyaFjallStore/Config#>.
-
-[] a rya:Repository ;
-   rya:repositoryID "{%Repository ID|RyaFjallStore%}" ;
-   rya:label "{%Repository title|RyaFjallStore%}" ;
-   rya:storeType "rya:FjallStore" ;
-   rac:user "{%Rya Fjall user|root%}" ;
-   rac:password "{%Rya Fjall password|root%}" ;
-   rac:instance "{%Rya Fjall instance|dev%}" ;
-   rac:zookeepers "{%Rya Fjall zookeepers|zoo1,zoo2,zoo3%}" ;
-   rac:isMock "{%Rya Fjall is mock|false|true%}" ."#;
+pub const RYA_FJALL_STORE_TEMPLATE: &str = r#"{
+  "@context": {
+    "rya": "http://omrya.local/config/store#",
+    "rac": "http://omrya.local/RyaFjallStore/Config#"
+  },
+  "@type": "rya:Repository",
+  "rya:repositoryID": "{%Repository ID|RyaFjallStore%}",
+  "rya:label": "{%Repository title|RyaFjallStore%}",
+  "rya:storeType": "rya:FjallStore",
+  "rac:user": "{%Rya Fjall user|root%}",
+  "rac:password": "{%Rya Fjall password|root%}",
+  "rac:instance": "{%Rya Fjall instance|dev%}",
+  "rac:coordinators": "{%Rya Fjall coordinators|zoo1,zoo2,zoo3%}",
+  "rac:isMock": "{%Rya Fjall is mock|false|true%}"
+}"#;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RdfStoreConfig {
@@ -68,21 +71,21 @@ impl RdfStoreConfig {
     pub fn parse_literals(values: &BTreeMap<String, String>) -> Result<Self, String> {
         let mut config = Self::default();
 
-        if let Some(server) = values.get(CLOUDBASE_SERVER) {
+        if let Some(server) = values.get(FJALL_SERVER) {
             config.server = server.clone();
         }
-        if let Some(port) = values.get(CLOUDBASE_PORT) {
+        if let Some(port) = values.get(FJALL_PORT) {
             config.port = port
                 .parse::<u16>()
-                .map_err(|e| format!("Invalid Cloudbase store port '{port}': {e}"))?;
+                .map_err(|e| format!("Invalid Fjall store port '{port}': {e}"))?;
         }
-        if let Some(instance) = values.get(CLOUDBASE_INSTANCE) {
+        if let Some(instance) = values.get(FJALL_INSTANCE) {
             config.instance = instance.clone();
         }
-        if let Some(user) = values.get(CLOUDBASE_USER) {
+        if let Some(user) = values.get(FJALL_USER) {
             config.user = user.clone();
         }
-        if let Some(password) = values.get(CLOUDBASE_PASSWORD) {
+        if let Some(password) = values.get(FJALL_PASSWORD) {
             config.password = password.clone();
         }
 
@@ -95,7 +98,7 @@ pub struct FjallStoreConfig {
     pub user: String,
     pub password: String,
     pub instance: String,
-    pub zookeepers: String,
+    pub coordinators: String,
     pub is_mock: bool,
 }
 
@@ -105,7 +108,7 @@ impl Default for FjallStoreConfig {
             user: "root".to_string(),
             password: "root".to_string(),
             instance: "dev".to_string(),
-            zookeepers: "zoo1,zoo2,zoo3".to_string(),
+            coordinators: "zoo1,zoo2,zoo3".to_string(),
             is_mock: false,
         }
     }
@@ -125,7 +128,7 @@ impl FjallStoreConfig {
             (RYA_FJALL_USER.to_string(), self.user.clone()),
             (RYA_FJALL_PASSWORD.to_string(), self.password.clone()),
             (RYA_FJALL_INSTANCE.to_string(), self.instance.clone()),
-            (RYA_FJALL_ZOOKEEPERS.to_string(), self.zookeepers.clone()),
+            (RYA_FJALL_COORDINATORS.to_string(), self.coordinators.clone()),
             (RYA_FJALL_IS_MOCK.to_string(), self.is_mock.to_string()),
         ])
     }
@@ -141,8 +144,8 @@ impl FjallStoreConfig {
         if let Some(instance) = values.get(RYA_FJALL_INSTANCE) {
             config.instance = instance.clone();
         }
-        if let Some(zookeepers) = values.get(RYA_FJALL_ZOOKEEPERS) {
-            config.zookeepers = zookeepers.clone();
+        if let Some(coordinators) = values.get(RYA_FJALL_COORDINATORS) {
+            config.coordinators = coordinators.clone();
         }
         if let Some(is_mock) = values.get(RYA_FJALL_IS_MOCK) {
             config.is_mock = is_mock.eq_ignore_ascii_case("true");
@@ -155,7 +158,7 @@ impl FjallStoreConfig {
 pub enum StoreBackend {
     Fjall {
         instance: String,
-        zookeepers: String,
+        coordinators: String,
         user: String,
         is_mock: bool,
         table_prefix: Option<String>,
@@ -243,7 +246,7 @@ impl FjallStoreFactory {
         Ok(RyaStore {
             backend: StoreBackend::Fjall {
                 instance: config.instance.clone(),
-                zookeepers: config.zookeepers.clone(),
+                coordinators: config.coordinators.clone(),
                 user: config.user.clone(),
                 is_mock: config.is_mock,
                 table_prefix: None,
@@ -307,7 +310,7 @@ impl RyaStoreFactory {
         let mut store = RyaStore {
             backend: StoreBackend::Fjall {
                 instance: fjall_config.instance,
-                zookeepers: fjall_config.zookeepers,
+                coordinators: fjall_config.coordinators,
                 user,
                 is_mock: fjall_config.is_mock,
                 table_prefix: Some(table_prefix),
@@ -371,30 +374,30 @@ pub fn render_fjall_store_template(values: &BTreeMap<String, String>) -> String 
 }
 
 pub fn parse_fjall_store_template(rendered: &str) -> Result<FjallStoreConfig, String> {
-    if !rendered.contains("rya:storeType \"rya:FjallStore\"") {
+    if !rendered.contains(r#""rya:storeType": "rya:FjallStore""#) {
         return Err("Rendered repository config does not declare rya:FjallStore".to_string());
     }
 
     let values = BTreeMap::from([
         (
             RYA_FJALL_USER.to_string(),
-            turtle_literal(rendered, "rac:user")?,
+            jsonld_string(rendered, "rac:user")?,
         ),
         (
             RYA_FJALL_PASSWORD.to_string(),
-            turtle_literal(rendered, "rac:password")?,
+            jsonld_string(rendered, "rac:password")?,
         ),
         (
             RYA_FJALL_INSTANCE.to_string(),
-            turtle_literal(rendered, "rac:instance")?,
+            jsonld_string(rendered, "rac:instance")?,
         ),
         (
-            RYA_FJALL_ZOOKEEPERS.to_string(),
-            turtle_literal(rendered, "rac:zookeepers")?,
+            RYA_FJALL_COORDINATORS.to_string(),
+            jsonld_string(rendered, "rac:coordinators")?,
         ),
         (
             RYA_FJALL_IS_MOCK.to_string(),
-            turtle_literal(rendered, "rac:isMock")?,
+            jsonld_string(rendered, "rac:isMock")?,
         ),
     ]);
     Ok(FjallStoreConfig::parse_literals(&values))
@@ -448,16 +451,16 @@ fn render_config_template(template: &str, values: &BTreeMap<String, String>) -> 
     rendered
 }
 
-fn turtle_literal(rendered: &str, predicate: &str) -> Result<String, String> {
-    let marker = format!("{predicate} \"");
+fn jsonld_string(rendered: &str, key: &str) -> Result<String, String> {
+    let marker = format!(r#""{key}": ""#);
     let start = rendered
         .find(&marker)
-        .ok_or_else(|| format!("Missing {predicate} literal"))?
+        .ok_or_else(|| format!("Missing {key} value"))?
         + marker.len();
     let tail = &rendered[start..];
     let end = tail
         .find('"')
-        .ok_or_else(|| format!("Unterminated {predicate} literal"))?;
+        .ok_or_else(|| format!("Unterminated {key} value"))?;
     Ok(tail[..end].to_string())
 }
 

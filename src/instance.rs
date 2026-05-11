@@ -246,7 +246,7 @@ fn check_and_set(
 ) {
     match conf.get(field).cloned() {
         Some(configured_value) => {
-            if java_boolean_value(&configured_value) != value {
+            if parse_bool_flag(&configured_value) != value {
                 overwrites.push(ConfigurationOverwrite {
                     field,
                     configured_value,
@@ -261,7 +261,7 @@ fn check_and_set(
     }
 }
 
-fn java_boolean_value(value: &str) -> bool {
+fn parse_bool_flag(value: &str) -> bool {
     value.eq_ignore_ascii_case("true")
 }
 

@@ -9,6 +9,7 @@ gc_*
 index.html
 *.ttl
 src/tests/
+data/
 
 
 ## Eclipse

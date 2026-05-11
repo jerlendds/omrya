@@ -109,12 +109,12 @@ impl SelectivityEvalStats {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct RdfCloudTripleStoreEvaluationStatistics {
+pub struct RdfStoreEvaluationStatistics {
     config: StatisticsConfig,
     stats: RdfEvalStats,
 }
 
-impl RdfCloudTripleStoreEvaluationStatistics {
+impl RdfStoreEvaluationStatistics {
     pub fn new(config: StatisticsConfig, stats: RdfEvalStats) -> Self {
         Self { config, stats }
     }
@@ -208,19 +208,19 @@ impl RdfCloudTripleStoreEvaluationStatistics {
 }
 
 #[derive(Clone, Debug)]
-pub struct RdfCloudTripleStoreSelectivityEvaluationStatistics {
-    base: RdfCloudTripleStoreEvaluationStatistics,
+pub struct RdfStoreSelectivityEvaluationStatistics {
+    base: RdfStoreEvaluationStatistics,
     selectivity: SelectivityEvalStats,
 }
 
-impl RdfCloudTripleStoreSelectivityEvaluationStatistics {
+impl RdfStoreSelectivityEvaluationStatistics {
     pub fn new(
         config: StatisticsConfig,
         stats: RdfEvalStats,
         selectivity: SelectivityEvalStats,
     ) -> Self {
         Self {
-            base: RdfCloudTripleStoreEvaluationStatistics::new(config, stats),
+            base: RdfStoreEvaluationStatistics::new(config, stats),
             selectivity,
         }
     }
@@ -252,7 +252,7 @@ impl RdfCloudTripleStoreSelectivityEvaluationStatistics {
 
 pub fn optimize_join_order(
     expr: TupleExpr,
-    stats: &RdfCloudTripleStoreSelectivityEvaluationStatistics,
+    stats: &RdfStoreSelectivityEvaluationStatistics,
 ) -> TupleExpr {
     let mut terms = Vec::new();
     collect_join_terms(expr, &mut terms);

@@ -13,24 +13,21 @@ pub const GEO_PREDICATES_LIST: &str = "sc.geo.predicates";
 pub const FREETEXT_PREDICATES_LIST: &str = "sc.freetext.predicates";
 pub const TEMPORAL_PREDICATES_LIST: &str = "sc.temporal.predicates";
 pub const RDF_CLOUD_TRIPLE_STORE_CONF_OPTIMIZERS: &str = "query.optimizers";
-pub const FILTER_FUNCTION_OPTIMIZER_CLASS: &str = "mvm.rya.indexing.FilterFunctionOptimizer";
-pub const ENTITY_CENTRIC_INDEXER_CLASS: &str = "mvm.rya.indexing.fjall.entity.EntityCentricIndex";
-pub const ENTITY_OPTIMIZER_CLASS: &str = "mvm.rya.indexing.fjall.entity.EntityOptimizer";
-pub const FJALL_GEOMESA_INDEXER_CLASS: &str = "mvm.rya.indexing.fjall.geo.GeoMesaGeoIndexer";
-pub const FJALL_FREETEXT_INDEXER_CLASS: &str =
-    "mvm.rya.indexing.fjall.freetext.FjallFreeTextIndexer";
-pub const FJALL_TEMPORAL_INDEXER_CLASS: &str =
-    "mvm.rya.indexing.fjall.temporal.FjallTemporalIndexer";
+pub const FILTER_FUNCTION_OPTIMIZER_ID: &str = "omrya::indexing::filter_function_optimizer";
+pub const ENTITY_CENTRIC_INDEXER_ID: &str = "omrya::indexing::entity_centric";
+pub const ENTITY_OPTIMIZER_ID: &str = "omrya::indexing::entity_optimizer";
+pub const FJALL_GEOMESA_INDEXER_ID: &str = "omrya::indexing::geomesa_geo";
+pub const FJALL_FREETEXT_INDEXER_ID: &str = "omrya::indexing::free_text";
+pub const FJALL_TEMPORAL_INDEXER_ID: &str = "omrya::indexing::temporal";
 pub const USE_PCJ: &str = "sc.use_pcj";
 pub const USE_OPTIMAL_PCJ: &str = "sc.use.optimal.pcj";
 pub const FLUO_APP_NAME: &str = "rya.indexing.pcj.fluo.fluoAppName";
 pub const USE_PCJ_FLUO_UPDATER: &str = "rya.indexing.pcj.updater.fluo";
 pub const PCJ_STORAGE_TYPE: &str = "rya.indexing.pcj.storageType";
 pub const PCJ_UPDATER_TYPE: &str = "rya.indexing.pcj.updaterType";
-pub const PCJ_OPTIMIZER_CLASS: &str = "mvm.rya.indexing.pcj.matching.PCJOptimizer";
-pub const LEGACY_PRECOMP_JOIN_OPTIMIZER_CLASS: &str =
-    "mvm.rya.indexing.external.PrecompJoinOptimizer";
-pub const PRECOMPUTED_JOIN_INDEXER_CLASS: &str = "mvm.rya.indexing.external.PrecomputedJoinIndexer";
+pub const PCJ_OPTIMIZER_ID: &str = "omrya::pcj::optimizer";
+pub const PRECOMP_JOIN_OPTIMIZER_ID: &str = "omrya::pcj::precomputed_join_optimizer";
+pub const PRECOMPUTED_JOIN_INDEXER_ID: &str = "omrya::pcj::precomputed_join_indexer";
 
 pub fn simple_tokenize(input: &str) -> BTreeSet<String> {
     input
@@ -97,15 +94,15 @@ pub fn configured_additional_indexers(conf: &IndexingConfiguration) -> Additiona
     let mut classes = Vec::new();
     let mut use_filter_index = false;
     if conf.get_bool(USE_GEO) {
-        classes.push(FJALL_GEOMESA_INDEXER_CLASS);
+        classes.push(FJALL_GEOMESA_INDEXER_ID);
         use_filter_index = true;
     }
     if conf.get_bool(USE_FREETEXT) {
-        classes.push(FJALL_FREETEXT_INDEXER_CLASS);
+        classes.push(FJALL_FREETEXT_INDEXER_ID);
         use_filter_index = true;
     }
     if conf.get_bool(USE_TEMPORAL) {
-        classes.push(FJALL_TEMPORAL_INDEXER_CLASS);
+        classes.push(FJALL_TEMPORAL_INDEXER_ID);
         use_filter_index = true;
     }
     AdditionalIndexers {
@@ -115,7 +112,7 @@ pub fn configured_additional_indexers(conf: &IndexingConfiguration) -> Additiona
 }
 
 pub fn configured_pcj_optimizer(conf: &IndexingConfiguration) -> Option<&'static str> {
-    (conf.get_bool(USE_PCJ) || conf.get_bool(USE_OPTIMAL_PCJ)).then_some(PCJ_OPTIMIZER_CLASS)
+    (conf.get_bool(USE_PCJ) || conf.get_bool(USE_OPTIMAL_PCJ)).then_some(PCJ_OPTIMIZER_ID)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -132,17 +129,17 @@ pub fn configured_indexer_plan(conf: &IndexingConfiguration) -> IndexerConfigura
     let mut optimizers = Vec::new();
 
     if additional.use_filter_index {
-        optimizers.push(FILTER_FUNCTION_OPTIMIZER_CLASS);
+        optimizers.push(FILTER_FUNCTION_OPTIMIZER_ID);
     }
 
     if conf.get_bool(USE_ENTITY) {
-        additional.classes.push(ENTITY_CENTRIC_INDEXER_CLASS);
-        optimizers.push(ENTITY_OPTIMIZER_CLASS);
+        additional.classes.push(ENTITY_CENTRIC_INDEXER_ID);
+        optimizers.push(ENTITY_OPTIMIZER_ID);
     }
 
     let pcj_optimizer = configured_pcj_optimizer(conf);
     if pcj_optimizer.is_some() {
-        additional.classes.push(PRECOMPUTED_JOIN_INDEXER_CLASS);
+        additional.classes.push(PRECOMPUTED_JOIN_INDEXER_ID);
     }
 
     IndexerConfigurationPlan {
@@ -167,9 +164,9 @@ impl FilterFunctionOptimizerFixture {
         let _ = conf;
         Self {
             initialized: true,
-            geo_indexer_class: Some(FJALL_GEOMESA_INDEXER_CLASS),
-            free_text_indexer_class: Some(FJALL_FREETEXT_INDEXER_CLASS),
-            temporal_indexer_class: Some(FJALL_TEMPORAL_INDEXER_CLASS),
+            geo_indexer_class: Some(FJALL_GEOMESA_INDEXER_ID),
+            free_text_indexer_class: Some(FJALL_FREETEXT_INDEXER_ID),
+            temporal_indexer_class: Some(FJALL_TEMPORAL_INDEXER_ID),
         }
     }
 }

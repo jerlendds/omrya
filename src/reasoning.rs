@@ -1,8 +1,6 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::build_info::{MavenDependency, MavenScopedDependency};
-
 pub const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 pub const RDFS_SUBCLASS_OF: &str = "http://www.w3.org/2000/01/rdf-schema#subClassOf";
 pub const RDFS_SUBPROPERTY_OF: &str = "http://www.w3.org/2000/01/rdf-schema#subPropertyOf";
@@ -37,10 +35,17 @@ pub const OWL_MAX_QUALIFIED_CARDINALITY: &str =
 pub const XSD_INT: &str = "http://www.w3.org/2001/XMLSchema#int";
 pub const XSD_STRING: &str = "http://www.w3.org/2001/XMLSchema#string";
 
-pub const RYA_REASONING_MODULE: &str = "rya.reasoning";
-pub const RYA_REASONING_ARTIFACT: &str = "rya.reasoning";
-pub const RYA_REASONING_DRIVER_CLASS: &str = "mvm.rya.reasoning.mr.ReasoningDriver";
-pub const POWERMOCK_VERSION: &str = "1.6.1";
+pub const RYA_REASONING_MODULE: &str = "omrya::reasoning";
+pub const RYA_REASONING_ARTIFACT: &str = "omrya-reasoning";
+pub const RYA_REASONING_ENGINE: &str = "omrya::reasoning::ReasoningEngine";
+pub const REASONING_TEST_FEATURE: &str = "reasoning-tests";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RustDependency {
+    pub crate_name: &'static str,
+    pub version_req: &'static str,
+    pub feature: Option<&'static str>,
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub enum RdfValue {
@@ -1939,47 +1944,36 @@ pub fn schema_filter(facts: impl IntoIterator<Item = Fact>) -> Schema {
     schema
 }
 
-pub fn reasoning_module_dependencies() -> Vec<MavenDependency> {
+pub fn reasoning_module_dependencies() -> Vec<RustDependency> {
     vec![
-        MavenDependency {
-            group_id: "org.apache.rya",
-            artifact_id: "rya.api",
-            version: "3.2.10-SNAPSHOT",
+        RustDependency {
+            crate_name: "omrya",
+            version_req: env!("CARGO_PKG_VERSION"),
+            feature: None,
         },
-        MavenDependency {
-            group_id: "org.apache.rya",
-            artifact_id: "fjall.rya",
-            version: "3.2.10-SNAPSHOT",
+        RustDependency {
+            crate_name: "fjall",
+            version_req: "3.1",
+            feature: Some("secure-keyspaces"),
         },
-        MavenDependency {
-            group_id: "org.apache.rya",
-            artifact_id: "rya.sail",
-            version: "3.2.10-SNAPSHOT",
+        RustDependency {
+            crate_name: "tree-sitter",
+            version_req: "0.26",
+            feature: None,
         },
-        MavenDependency {
-            group_id: "org.apache.rya",
-            artifact_id: "rya.mapreduce",
-            version: "3.2.10-SNAPSHOT",
-        },
-        MavenDependency {
-            group_id: "org.apache.hadoop",
-            artifact_id: "hadoop-mapreduce-client-core",
-            version: "${hadoop.version}",
-        },
-        MavenDependency {
-            group_id: "org.apache.fjall",
-            artifact_id: "fjall-minicluster",
-            version: "${fjall.version}",
+        RustDependency {
+            crate_name: "tree-sitter-rust",
+            version_req: "0.24",
+            feature: None,
         },
     ]
 }
 
-pub fn powermock_test_dependency() -> MavenScopedDependency {
-    MavenScopedDependency {
-        group_id: "org.powermock",
-        artifact_id: "powermock-module-junit4",
-        version: POWERMOCK_VERSION,
-        scope: "test",
+pub fn reasoning_test_dependency() -> RustDependency {
+    RustDependency {
+        crate_name: "omrya",
+        version_req: env!("CARGO_PKG_VERSION"),
+        feature: Some(REASONING_TEST_FEATURE),
     }
 }
 

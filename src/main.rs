@@ -17,7 +17,6 @@ const DEFAULT_TABLE: &str = "sro";
 const SESSION_FILE: &str = "session.token";
 const SRO_LOG_FILE: &str = "sro.log";
 const SPARQL_HTML: &str = include_str!("../sparql.html");
-const FAVICON_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="10" fill="#050a0f"/><circle cx="32" cy="32" r="22" fill="none" stroke="#4ba3ff" stroke-width="4"/><text x="32" y="38" text-anchor="middle" font-family="monospace" font-size="16" font-weight="700" fill="#d6e3eb">RYA</text></svg>"##;
 const AVR_QUERY_ALL: &str = "SELECT * WHERE { ?s ?p ?o }";
 const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 const CODE_NS: &str = "http://omrya.local/code/";
@@ -533,7 +532,7 @@ fn handle_connection(
         ("GET", "/") | ("GET", "/sparql.html") => {
             write_response(stream, 200, "text/html; charset=utf-8", SPARQL_HTML)
         }
-        ("GET", "/favicon.ico") => write_response(stream, 200, "image/svg+xml", FAVICON_SVG),
+        ("GET", "/favicon.ico") => write_response(stream, 404, "text/plain", "Not found\n"),
         ("GET", "/health") => write_response(stream, 200, "text/plain", "ok\n"),
         ("GET", "/metrics") => {
             state.metrics.metrics_requests += 1;
@@ -1300,7 +1299,7 @@ fn detect_code_findings(path: &str, content: &str) -> Vec<CodeFinding> {
         }
     }
 
-    if path.ends_with("Cargo.toml") || path.ends_with("package.json") || path.ends_with("pom.xml") {
+    if path.ends_with("Cargo.toml") || path.ends_with("package.json") {
         findings.push(CodeFinding {
             kind: "DependencyGraphSurface",
             operator: "ExpandDependencyQueries",
@@ -1337,9 +1336,8 @@ fn language_for(path: &str) -> &'static str {
     match path.rsplit('.').next().unwrap_or_default() {
         "rs" => "Rust",
         "py" => "Python",
-        "js" | "mjs" | "cjs" => "JavaScript",
+        "js" | "mjs" | "cjs" => "JS",
         "ts" | "tsx" => "TypeScript",
-        "java" => "Java",
         "go" => "Go",
         "rb" => "Ruby",
         "php" => "PHP",
@@ -1347,7 +1345,6 @@ fn language_for(path: &str) -> &'static str {
         "cc" | "cpp" | "hpp" => "C++",
         "toml" => "TOML",
         "json" => "JSON",
-        "xml" => "XML",
         "md" => "Markdown",
         _ => "Text",
     }
