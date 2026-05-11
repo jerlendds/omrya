@@ -1365,14 +1365,23 @@
       }
 
       .tab {
+        appearance: none;
+        border: 0;
+        background: transparent;
         color: #7f8da1;
+        cursor: pointer;
         font-size: 10px;
         font-weight: 900;
+        padding: 0;
         text-transform: uppercase;
       }
 
       .tab.active {
         color: #e5f1fc;
+      }
+
+      .tab:hover {
+        color: #f8fbff;
       }
 
       .textarea {
@@ -1459,6 +1468,25 @@
 
       .schema-kv {
         margin-top: 8px;
+      }
+
+      .entity-tab-body {
+        padding: 0;
+      }
+
+      .entity-tab-body .evidence-list,
+      .entity-tab-body .relation-list,
+      .entity-tab-body .connected-chips,
+      .entity-tab-body .samples {
+        padding: 12px 14px;
+      }
+
+      .entity-tab-body .relation-actions {
+        padding-top: 0;
+      }
+
+      .entity-note {
+        padding: 12px 14px;
       }
 
       .footer {
@@ -2222,6 +2250,7 @@
                 y: Math.sin(angle) * radius,
                 size: Math.min(9, (isSubject ? 4.8 : 3.8) + Math.sqrt(nodeDegree) * 0.8),
                 color: isLiteral ? "#f28f3b" : isSubject ? "#38c8ff" : "#37e33f",
+                labelColor: "#d8e5ef",
               });
             });
             entries.forEach((entry) => {
@@ -2243,13 +2272,14 @@
             graphRef.current = graph;
             const renderer = new SigmaCtor(graph, container, {
               allowInvalidContainer: true,
-              labelColor: { color: "#dbe6d8" },
+              labelColor: { attribute: "labelColor", color: "#dbe6d8" },
               labelSize: 10,
               labelRenderedSizeThreshold: 8,
               renderEdgeLabels: false,
               edgeLabelSize: 8,
               defaultEdgeColor: "#5d6e5a",
               defaultNodeColor: "#38c8ff",
+              defaultDrawNodeHover: drawReadableHoverLabel,
             });
             rendererRef.current = renderer;
 
@@ -2568,6 +2598,7 @@
       }
 
       function DetailsSidebar(props) {
+        const [activeTab, setActiveTab] = useState("overview");
         const summary = summarizeRows(props.graphRows);
         const node = props.selectedNode || "";
         const nodeRows = node ? props.graphRows.filter((row) => row.s === node || row.o === node) : [];
@@ -2583,6 +2614,18 @@
           .filter((row) => /Hypothesis|Probe|Signal|Reproducer|Patch|Evidence|failureClass|observedSignal|derivedReproducer|proposedPatch|supportedByEvidence/.test(row.s + " " + row.p + " " + row.o))
           .slice(0, 8);
         const connected = Array.from(new Set(nodeRows.flatMap((row) => [row.s, row.o]).filter((value) => value && value !== node))).slice(0, 8);
+        const tabs = [
+          ["overview", "Overview"],
+          ["properties", "Properties"],
+          ["relations", "Relations (" + nodeRows.length + ")"],
+          ["triples", "Triples"],
+          ["notes", "Notes"],
+        ];
+
+        useEffect(() => {
+          setActiveTab("overview");
+        }, [node]);
+
         return h("aside", { className: "details" },
           h("section", { className: "panel" },
             h("div", { className: "panel-header" }, h("span", null, "Entity Details"), h("span", null, "x")),
@@ -2595,37 +2638,31 @@
                 )
               ),
               h("div", { className: "detail-tabs" },
-                ["Overview", "Properties", "Relations (" + nodeRows.length + ")", "Triples", "Notes"].map((label, index) =>
-                  h("span", { className: "tab" + (index === 0 ? " active" : "") }, label)
+                tabs.map(([id, label]) =>
+                  h("button", {
+                    className: "tab" + (activeTab === id ? " active" : ""),
+                    type: "button",
+                    onClick: () => setActiveTab(id),
+                  }, label)
                 )
               ),
-              h("table", { className: "properties" },
-                h("tbody", null,
-                  node
-                    ? [
-                        detail("TYPE", "Resource"),
-                        detail("LANGUAGE", nodeTypes.join(", ") || "RDF"),
-                        detail("OUTGOING", outgoing.length),
-                        detail("INCOMING", incoming.length),
-                        detail("SESSION", props.token ? "Authenticated" : "Unsigned"),
-                      ]
-                    : [
-                        detail("HYPOTHESES", summary.hypotheses),
-                        detail("PROBES", summary.probes),
-                        detail("SIGNALS", summary.signals),
-                        detail("REPRODUCERS", summary.reproducers),
-                        detail("PATCHES", summary.patches),
-                        detail("SESSION", props.token ? "Authenticated" : "Unsigned"),
-                        detail("LAST UPDATED", new Date().toISOString()),
-                      ]
-                )
+              h("div", { className: "entity-tab-body" },
+                renderEntityTab(activeTab, {
+                  node,
+                  nodeRows,
+                  outgoing,
+                  incoming,
+                  nodeTypes,
+                  summary,
+                  token: props.token,
+                  nodeExplanation,
+                  connected,
+                  evidence,
+                  logs: props.logs,
+                  setQuery: props.setQuery,
+                })
               )
-            ),
-            node ? h("div", { className: "panel-body" },
-              h("div", { className: "explain" },
-                nodeExplanation || explainSelectedNode(node, nodeTypes, outgoing.length, incoming.length)
-              )
-            ) : null
+            )
           ),
           node ? h("section", { className: "panel" },
             h("div", { className: "panel-header" }, "Outgoing Relations"),
@@ -2689,6 +2726,107 @@
 
       function detail(key, value) {
         return h("tr", null, h("th", null, key), h("td", null, value));
+      }
+
+      function renderEntityTab(activeTab, context) {
+        if (activeTab === "properties") {
+          return context.nodeRows.length
+            ? h("div", { className: "evidence-list" }, context.nodeRows.slice(0, 12).map((row) =>
+                h("div", { className: "evidence-item" },
+                  h("div", { className: "evidence-predicate" }, (row.s === context.node ? "OUT " : "IN ") + compactLabel(row.p)),
+                  h("div", { className: "evidence-text" }, row.s === context.node ? compactLabel(row.o) : compactLabel(row.s))
+                )
+              ))
+            : h("div", { className: "status" }, "No rows in the current result set mention this entity.");
+        }
+
+        if (activeTab === "relations") {
+          return h("div", null,
+            context.outgoing.length
+              ? h("div", { className: "relation-list" }, context.outgoing.slice(0, 8).map((row) =>
+                  h("div", { className: "relation-row" },
+                    h("span", null, compactLabel(row.p)),
+                    h("strong", null, compactLabel(row.o))
+                  )
+                ))
+              : h("div", { className: "status" }, "No outgoing relations in the current result set."),
+            context.connected.length
+              ? h("div", { className: "connected-chips relation-actions" }, context.connected.map((value) =>
+                  h("button", {
+                    className: "chip",
+                    type: "button",
+                    onClick: () => context.setQuery("SELECT * WHERE { { " + ntTerm(value) + " ?p ?o } UNION { ?s ?p " + ntTerm(value) + " } }"),
+                  }, compactLabel(value))
+                ))
+              : null,
+            context.node ? h("div", { className: "samples relation-actions" },
+              nodeQueryTemplates(context.node).map((template) =>
+                h("button", {
+                  className: "chip",
+                  type: "button",
+                  onClick: () => context.setQuery(template.query),
+                  title: template.query,
+                }, template.label)
+              )
+            ) : null
+          );
+        }
+
+        if (activeTab === "triples") {
+          const rows = context.node ? context.nodeRows : context.evidence;
+          return rows.length
+            ? h("div", { className: "evidence-list" }, rows.slice(0, 12).map((row) =>
+                h("div", { className: "evidence-item" },
+                  h("div", { className: "evidence-predicate" }, compactLabel(row.p)),
+                  h("div", { className: "evidence-text" }, compactLabel(row.s) + " -> " + compactLabel(row.o))
+                )
+              ))
+            : h("div", { className: "status" }, "No triples available in the current result set.");
+        }
+
+        if (activeTab === "notes") {
+          return h("div", { className: "evidence-list" },
+            h("div", { className: "explain" },
+              context.node
+                ? context.nodeExplanation || explainSelectedNode(context.node, context.nodeTypes, context.outgoing.length, context.incoming.length)
+                : "Select a graph node to inspect entity notes, provenance, and query helpers."
+            ),
+            context.logs.length
+              ? h("div", { className: "tree" }, context.logs.slice(0, 5).map((line) =>
+                  h("div", { className: "tree-row", title: line }, h("span", { className: "tree-name" }, formatActivityLine(line)))
+                ))
+              : h("div", { className: "status" }, "No authenticated SRO activity loaded.")
+          );
+        }
+
+        return h("div", null,
+          h("table", { className: "properties" },
+            h("tbody", null,
+              context.node
+                ? [
+                    detail("TYPE", "Resource"),
+                    detail("LANGUAGE", context.nodeTypes.join(", ") || "RDF"),
+                    detail("OUTGOING", context.outgoing.length),
+                    detail("INCOMING", context.incoming.length),
+                    detail("SESSION", context.token ? "Authenticated" : "Unsigned"),
+                  ]
+                : [
+                    detail("HYPOTHESES", context.summary.hypotheses),
+                    detail("PROBES", context.summary.probes),
+                    detail("SIGNALS", context.summary.signals),
+                    detail("REPRODUCERS", context.summary.reproducers),
+                    detail("PATCHES", context.summary.patches),
+                    detail("SESSION", context.token ? "Authenticated" : "Unsigned"),
+                    detail("LAST UPDATED", new Date().toISOString()),
+                  ]
+            )
+          ),
+          context.node ? h("div", { className: "panel-body entity-note" },
+            h("div", { className: "explain" },
+              context.nodeExplanation || explainSelectedNode(context.node, context.nodeTypes, context.outgoing.length, context.incoming.length)
+            )
+          ) : null
+        );
       }
 
       function explainSelectedNode(node, nodeTypes, outgoingCount, incomingCount) {
@@ -2877,10 +3015,13 @@
           const selected = selectedNodes.has(node) || node === selectedNode;
           const baseSize = attrs.baseSize || attrs.size || 9;
           if (!attrs.baseSize) graph.setNodeAttribute(node, "baseSize", baseSize);
+          if (attrs.baseLabel === undefined) graph.setNodeAttribute(node, "baseLabel", attrs.label || "");
+          if (!attrs.baseColor) graph.setNodeAttribute(node, "baseColor", attrs.color);
           graph.setNodeAttribute(node, "highlighted", active || selected);
           graph.setNodeAttribute(node, "size", active ? baseSize + 4 : selected ? baseSize + 3 : baseSize);
-          graph.setNodeAttribute(node, "color", active ? "#ffffff" : selected ? "#9aff8d" : attrs.baseColor || attrs.color);
-          if (!attrs.baseColor) graph.setNodeAttribute(node, "baseColor", attrs.color);
+          graph.setNodeAttribute(node, "color", active ? "#7dd3fc" : selected ? "#69df78" : attrs.baseColor || attrs.color);
+          graph.setNodeAttribute(node, "label", active || selected ? compactLabel(node) : attrs.baseLabel || "");
+          graph.setNodeAttribute(node, "labelColor", active || selected ? "#f8fbff" : "#d8e5ef");
         });
         graph.forEachEdge((edge, attrs) => {
           const key = attrs.rowKey;
@@ -2890,9 +3031,49 @@
           if (!attrs.baseSize) graph.setEdgeAttribute(edge, "baseSize", baseSize);
           if (!attrs.baseColor) graph.setEdgeAttribute(edge, "baseColor", attrs.color);
           graph.setEdgeAttribute(edge, "size", active ? 4 : selected ? 3 : baseSize);
-          graph.setEdgeAttribute(edge, "color", active ? "#ffffff" : selected ? "#37e33f" : attrs.baseColor || attrs.color);
+          graph.setEdgeAttribute(edge, "color", active ? "#d8f3ff" : selected ? "#69df78" : attrs.baseColor || attrs.color);
         });
         renderer.refresh();
+      }
+
+      function drawReadableHoverLabel(context, data, settings) {
+        const label = data.label || "";
+        if (!label) return;
+        const fontSize = Number(settings.labelSize) || 11;
+        const font = settings.labelFont || "SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace";
+        const x = data.x + (data.size || 6) + 8;
+        const y = data.y - fontSize - 7;
+        const padX = 8;
+        const padY = 5;
+        context.save();
+        context.font = "700 " + fontSize + "px " + font;
+        const width = Math.ceil(context.measureText(label).width + padX * 2);
+        const height = Math.ceil(fontSize + padY * 2);
+        drawRoundRect(context, x, y, width, height, 5);
+        context.fillStyle = "rgba(5, 13, 23, 0.96)";
+        context.fill();
+        context.strokeStyle = data.color || "#2f9cff";
+        context.lineWidth = 1.2;
+        context.stroke();
+        context.fillStyle = "#f8fbff";
+        context.textBaseline = "middle";
+        context.fillText(label, x + padX, y + height / 2);
+        context.restore();
+      }
+
+      function drawRoundRect(context, x, y, width, height, radius) {
+        const r = Math.min(radius, width / 2, height / 2);
+        context.beginPath();
+        context.moveTo(x + r, y);
+        context.lineTo(x + width - r, y);
+        context.quadraticCurveTo(x + width, y, x + width, y + r);
+        context.lineTo(x + width, y + height - r);
+        context.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+        context.lineTo(x + r, y + height);
+        context.quadraticCurveTo(x, y + height, x, y + height - r);
+        context.lineTo(x, y + r);
+        context.quadraticCurveTo(x, y, x + r, y);
+        context.closePath();
       }
 
       function summarizeRows(rows) {
